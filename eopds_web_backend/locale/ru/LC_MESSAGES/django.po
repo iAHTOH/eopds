@@ -368,3 +368,7 @@ msgstr "Учетная запись не активна!"
 #: .\eopds_web_backend\views.py:583
 msgid "User does not exist or the password is incorrect!"
 msgstr "Пользователь не существует или введен неправильный пароль!"
+
+#: .\eopds_web_backend\templates\eopds_footer.html
+msgid "Support & Community Forum"
+msgstr "Поддержка и форум сообщества"
