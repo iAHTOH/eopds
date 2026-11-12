@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='opds_catalog' %}">opds_catalog</a>
+    &rsaquo; <a href="{% url 'admin:opds_catalog_book_changelist' %}">Books</a>
+    &rsaquo; {% translate 'Очистить базу данных' %}
+  </div>
+{% endblock %}
+
+{% block content %}
+  <h1>Очистить базу данных</h1>
+
+  <p style="font-size:14px;">
+    Вы собираетесь <b>полностью очистить базу данных каталога</b>:
+    книги, авторы, серии, жанры, книжные полки и счётчики будут удалены.
+    После этого справочник жанров будет загружен заново.
+  </p>
+  <p style="color:#ba2121; font-weight:bold;">
+    Это действие необратимо. Сами файлы книг на диске не удаляются,
+    но их придётся проиндексировать заново (сканирование).
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+    <div>
+      <input type="submit" value="Да, очистить базу данных"
+             style="background:#ba2121; color:#fff; padding:10px 16px; border:none; cursor:pointer; font-weight:600;">
+      <a href="{% url 'admin:opds_catalog_book_changelist' %}"
+         style="margin-left:12px;">Отмена</a>
+    </div>
+  </form>
+{% endblock %}

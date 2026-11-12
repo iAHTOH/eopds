@@ -44,8 +44,16 @@ EOF
 echo "Running migrations..."
 python3 manage.py migrate --noinput
 
-# Инициализация справочника жанров (только при первом запуске)
-python3 manage.py eopds_util clear 2>/dev/null || true
+# Инициализация справочника жанров ТОЛЬКО при первом запуске
+# (если таблица жанров пуста). НЕ очищаем книги при каждом старте контейнера!
+GENRE_COUNT=$(python3 manage.py shell -c "from opds_catalog.models import Genre; print(Genre.objects.count())" 2>/dev/null | tail -n1 | tr -dc '0-9' || echo 0)
+GENRE_COUNT=${GENRE_COUNT:-0}
+if [ "${GENRE_COUNT:-0}" = "0" ]; then
+    echo "First run: initializing genres fixture..."
+    python3 manage.py loaddata genre.json 2>/dev/null || true
+else
+    echo "Genres already present (${GENRE_COUNT}), skipping clear."
+fi
 
 # Создание суперпользователя
 if [ -n "$EOPDS_SU_NAME" ] && [ -n "$EOPDS_SU_EMAIL" ] && [ -n "$EOPDS_SU_PASS" ]; then
