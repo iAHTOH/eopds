@@ -269,6 +269,34 @@ CONSTANCE_CONFIG = OrderedDict(
         ),
         ("EOPDS_DELETE_LOGICAL", (False, _("Logical deleting unavialable files"))),
         (
+            "EOPDS_SCANNER_ENGINE",
+            (
+                "python",
+                _("Scanner engine: 'python' (built-in) or 'go' (experimental fast parallel scanner)"),
+            ),
+        ),
+        (
+            "EOPDS_SCANNER_DEBUG",
+            (
+                True,
+                _("Verbose debug logging for the scanner (useful for bug reports)"),
+            ),
+        ),
+        (
+            "EOPDS_SCAN_WORKERS",
+            (
+                0,
+                _("Number of parallel scanner workers (0 = auto, equals CPU count). Used by Go engine"),
+            ),
+        ),
+        (
+            "EOPDS_SCANNER_BIN",
+            (
+                "",
+                _("Path to Go scanner binary eopds-scanner (empty = auto-detect)"),
+            ),
+        ),
+        (
             "EOPDS_SCAN_SHED_MIN",
             ("0", _("sheduled minutes for eopds_scanner (cron syntax)")),
         ),
@@ -360,6 +388,10 @@ CONSTANCE_CONFIG_FIELDSETS = {
         "EOPDS_NOCOVER_PATH",
     ),
     "3. Scanner Options": (
+        "EOPDS_SCANNER_ENGINE",
+        "EOPDS_SCANNER_DEBUG",
+        "EOPDS_SCAN_WORKERS",
+        "EOPDS_SCANNER_BIN",
         "EOPDS_FB2SAX",
         "EOPDS_ZIPSCAN",
         "EOPDS_ZIPCODEPAGE",

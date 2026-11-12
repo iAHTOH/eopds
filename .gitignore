@@ -42,3 +42,10 @@ opds_catalog/cache/
 # ================== Build helpers ==================
 docker-compose.build.yml
 .env.build
+
+# ================== AI assistant / tooling ==================
+.continue/
+
+# ================== Go build artifacts ==================
+eopds-go/eopds
+eopds-go/eopds-scanner

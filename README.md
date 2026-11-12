@@ -18,6 +18,7 @@ OPDS catalog for home e-book collection with web interface, Telegram bot, and on
 - **Telegram bot**: search and download books via Telegram (including conversion)
 - **Authentication**: BASIC auth for web access
 - **Collection scanning**: automatic indexing from filesystem (ZIP archives and INPX supported)
+  - Two engines: built-in **Python** scanner (default) and experimental fast **Go** scanner (parallel, ~2x faster). Switch with `EOPDS_SCANNER_ENGINE`
 - **Flexible settings** via web admin panel (django-constance)
 
 ---
@@ -220,6 +221,10 @@ Available via web admin `/admin/` → Constance → Settings.
 | **eopds_CACHE_TIME** | 1200 | Page cache time (sec) |
 | **eopds_SPLITITEMS** | 300 | Items per group before expanding |
 | **eopds_MAXITEMS** | 60 | Books per page |
+| **eopds_SCANNER_ENGINE** | python | Scanner engine: `python` (built-in) or `go` (experimental fast parallel scanner) |
+| **eopds_SCANNER_DEBUG** | True | Verbose debug logging for the scanner |
+| **eopds_SCAN_WORKERS** | 0 | Parallel scanner workers (0 = auto = CPU count), used by Go engine |
+| **eopds_SCANNER_BIN** | — | Path to Go scanner binary (empty = auto-detect) |
 
 ---
 

@@ -1,5 +1,19 @@
 FROM python:3.13-slim-bookworm
 
+# --- Stage: сборка Go-сканера (экспериментальный движок) ---
+# Собираем статический бинарник отдельным stage, чтобы не тащить Go
+# в рантайм-образ. Бинарник копируется в финальный образ ниже.
+FROM golang:1.23-bookworm AS goscanner
+WORKDIR /src
+COPY eopds-go/ ./
+COPY VERSION /VERSION
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags "-s -w -X main.version=$(cat /VERSION)" \
+    -o /out/eopds-scanner ./cmd/eopds-scanner
+
+FROM python:3.13-slim-bookworm
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -44,14 +58,19 @@ RUN mkdir -p /workspace/eopds/locale/ru/LC_MESSAGES \
 
 # Установка fb2cng — современный конвертер FB2 в EPUB/AZW8 (бинарник из локальной папки)
 RUN if [ -f /workspace/convert/fb2cng/fbc ]; then \
-        chmod +x /workspace/convert/fb2cng/fbc; \
-        chmod +x /workspace/convert/fb2cng/fb2epub /workspace/convert/fb2cng/fb2mobi; \
-        echo "fb2cng installed from local copy"; \
+    chmod +x /workspace/convert/fb2cng/fbc; \
+    chmod +x /workspace/convert/fb2cng/fb2epub /workspace/convert/fb2cng/fb2mobi; \
+    echo "fb2cng installed from local copy"; \
     else \
-        echo "fb2cng binary not found in convert/fb2cng/"; \
+    echo "fb2cng binary not found in convert/fb2cng/"; \
     fi
 RUN mkdir -p db opds_catalog/log opds_catalog/tmp static \
     && chmod -R 777 db opds_catalog
+
+# Go-сканер (экспериментальный движок). Бинарник собран в stage goscanner.
+# Кладём вне /workspace, т.к. /workspace перекрывается bind-mount'ом при dev-запуске.
+COPY --from=goscanner /out/eopds-scanner /usr/local/bin/eopds-scanner
+RUN chmod +x /usr/local/bin/eopds-scanner
 
 EXPOSE 8000
 

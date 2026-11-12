@@ -1,3 +1,9 @@
 - Обработка статики при DEBUG=False:
   https://stackoverflow.com/questions/5836674/why-does-debug-false-setting-make-my-django-static-files-access-fail
 
+- Go-сканер (экспериментальный, EOPDS_SCANNER_ENGINE=go):
+  - пакетная запись в БД (bulk_create/update) — сейчас узкое место после записи;
+  - поддержка постраничного сканирования / инкрементальный skip по размеру и mtime;
+  - кодировки кроме windows-1251 (koi8-r, cp866);
+  - полноценные метаданные EPUB/MOBI/PDF;
+  - типизированные коды ошибок/прогресс из Go-процесса.

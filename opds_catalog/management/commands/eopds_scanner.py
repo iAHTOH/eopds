@@ -30,6 +30,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options): 
         self.pidfile = os.path.join(main_settings.BASE_DIR, config.EOPDS_SCANNER_PID)
         action = options['command']            
+        self.verbose = options.get('verbose', False)
         self.logger = logging.getLogger('')
         self.logger.setLevel(logging.DEBUG)
         formatter=logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
@@ -80,11 +81,37 @@ class Command(BaseCommand):
         if connection.connection and not connection.is_usable():
             del(connections._connections.default)
                 
+        engine = (getattr(config, 'EOPDS_SCANNER_ENGINE', 'python') or 'python').lower()
+        if engine == 'go':
+            self.stdout.write('Using Go scanner engine.')
+            self.scan_go()
+            self.scan_is_active = False
+            return
+
         scanner=opdsScanner(self.logger)
         with transaction.atomic():
             scanner.scan_all()
         Counter.objects.update_known_counters()  
         self.scan_is_active = False
+
+    def scan_go(self):
+        """Сканирование через экспериментальный Go-движок.
+
+        При любой фатальной ошибке — откатываемся на штатный Python-сканер,
+        чтобы сканирование всё равно отработало.
+        """
+        from opds_catalog import scan_engine_go
+        try:
+            stats = scan_engine_go.scan_all_go(self.logger, self.verbose)
+            if stats:
+                self.stdout.write('Go scan complete: %s' % stats)
+        except Exception as exc:  # noqa: BLE001
+            self.logger.error('Go scanner failed: %s', exc)
+            self.stdout.write('Go scanner failed (%s). Falling back to Python engine.' % exc)
+            scanner=opdsScanner(self.logger)
+            with transaction.atomic():
+                scanner.scan_all()
+            Counter.objects.update_known_counters()
         
     def update_shedule(self):
         self.SCAN_SHED_DAY = config.EOPDS_SCAN_SHED_DAY
