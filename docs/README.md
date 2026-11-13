@@ -14,6 +14,7 @@
 ### Обзор
 - [architecture.md](architecture.md) — общая архитектура системы (Python + Go).
 - [versioning.md](versioning.md) — версионирование, схема БД, проверка обновлений.
+- [db-schema.md](db-schema.md) — проектирование новой схемы БД для Go-ядра.
 - [roadmap.md](roadmap.md) — план развития проекта.
 
 ### Развёртывание
