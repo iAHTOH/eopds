@@ -1,12 +1,21 @@
-# HTTP API Go-сервиса (`eopds admin`)
+# HTTP API Go-сервиса (`eopds serve`)
 
-Базовый префикс: `/api`. Все ответы — JSON (`application/json`).
+Базовый префикс API: `/api`. Все ответы API — JSON (`application/json`).
 Аутентификация для admin-API — в разработке (см. roadmap); публичные
 read-only эндпоинты доступны без неё.
 
+## UI-маршруты (HTML)
+
+| Метод | Путь | Назначение |
+|---|---|---|
+| GET | `/` | главная админки (если не установлено → редирект на `/install`) |
+| GET | `/install` | мастер первичной установки ([install.md](install.md)) |
+| POST | `/install` | обработка формы установки; успех → `303` на `/` |
+| GET | `/healthz` | простой алиас `/api/health` |
+
 ## `GET /api/health`
 
-Состояние сервиса.
+Состояние сервиса (алиас: `GET /healthz`).
 
 ```json
 {

@@ -1,0 +1,143 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/iAHTOH/eopds/eopds-go/internal/config"
+)
+
+// IsInstalled сообщает, создан ли root-админ (мастер установки пройден).
+func (s *DBStore) IsInstalled(ctx context.Context) (bool, error) {
+	var n int64
+	q := "SELECT COUNT(1) FROM users WHERE is_root = " + s.boolTrue()
+	if err := s.db.QueryRowContext(ctx, q).Scan(&n); err != nil {
+		return false, fmt.Errorf("store: is installed: %w", err)
+	}
+	return n > 0, nil
+}
+
+// boolTrue возвращает литерал «истина» для диалекта.
+func (s *DBStore) boolTrue() string {
+	if s.kind == config.DBSQLite {
+		return "1"
+	}
+	return "TRUE"
+}
+
+// CreateRootAdmin создаёт единственного root-администратора.
+// Если root уже существует — возвращает ErrRootExists.
+func (s *DBStore) CreateRootAdmin(ctx context.Context, username, passwordHash, email string) (int64, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return 0, errors.New("store: empty username")
+	}
+	if passwordHash == "" {
+		return 0, errors.New("store: empty password hash")
+	}
+
+	var emailArg any
+	if e := strings.TrimSpace(email); e != "" {
+		emailArg = e
+	}
+
+	q := fmt.Sprintf(
+		"INSERT INTO users (username, email, password_hash, role, is_root, is_active) "+
+			"VALUES (%s, %s, %s, 'admin', %s, %s) RETURNING id",
+		s.ph(1), s.ph(2), s.ph(3), s.boolTrue(), s.boolTrue(),
+	)
+
+	var id int64
+	err := s.db.QueryRowContext(ctx, q, username, emailArg, passwordHash).Scan(&id)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return 0, ErrRootExists
+		}
+		return 0, fmt.Errorf("store: create root admin: %w", err)
+	}
+	return id, nil
+}
+
+// GetUserByUsername ищет пользователя по логину.
+func (s *DBStore) GetUserByUsername(ctx context.Context, username string) (*User, error) {
+	bt := s.boolTrue()
+	q := fmt.Sprintf(
+		"SELECT id, username, email, password_hash, role, is_root = %s, is_active = %s, %s "+
+			"FROM users WHERE username = %s",
+		bt, bt, s.createdAtExpr(), s.ph(1))
+
+	u := &User{}
+	var email sql.NullString
+	var isRoot, isActive int64
+	err := s.db.QueryRowContext(ctx, q, username).Scan(
+		&u.ID, &u.Username, &email, &u.PasswordHash, &u.Role,
+		&isRoot, &isActive, &u.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: get user: %w", err)
+	}
+	u.IsRoot = isRoot != 0
+	u.IsActive = isActive != 0
+	if email.Valid {
+		u.Email = &email.String
+	}
+	return u, nil
+}
+
+// SetSetting сохраняет настройку (upsert).
+func (s *DBStore) SetSetting(ctx context.Context, key, value string, updatedBy int64) error {
+	var byArg any
+	if updatedBy > 0 {
+		byArg = updatedBy
+	}
+
+	// UPSERT: PG — ON CONFLICT, SQLite — ON CONFLICT (синтаксис близок).
+	q := fmt.Sprintf(
+		"INSERT INTO settings (key, value, updated_by_id) VALUES (%s, %s, %s) "+
+			"ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "+
+			"updated_at = CURRENT_TIMESTAMP, updated_by_id = EXCLUDED.updated_by_id",
+		s.ph(1), s.ph(2), s.ph(3))
+
+	if _, err := s.db.ExecContext(ctx, q, key, value, byArg); err != nil {
+		return fmt.Errorf("store: set setting %q: %w", key, err)
+	}
+	return nil
+}
+
+// GetSetting читает настройку.
+func (s *DBStore) GetSetting(ctx context.Context, key string) (string, error) {
+	q := fmt.Sprintf("SELECT value FROM settings WHERE key = %s", s.ph(1))
+	var v string
+	if err := s.db.QueryRowContext(ctx, q, key).Scan(&v); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", fmt.Errorf("store: get setting %q: %w", key, err)
+	}
+	return v, nil
+}
+
+// createdAtExpr возвращает выражение, приводящее created_at к строке ISO-8601.
+func (s *DBStore) createdAtExpr() string {
+	if s.kind == config.DBSQLite {
+		return "created_at" // уже TEXT ISO-8601
+	}
+	return "to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')"
+}
+
+// isUniqueViolation определяет нарушение уникальности в PG/SQLite по строке.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique") ||
+		strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "constraint failed")
+}

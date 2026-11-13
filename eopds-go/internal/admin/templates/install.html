@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.AppName}} — установка</title>
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="install-body">
+  <main class="card">
+    <header class="card-head">
+      <h1>{{.AppName}}</h1>
+      <p class="muted">Первичная установка · v{{.Version}}</p>
+    </header>
+
+    {{if .Error}}
+    <div class="alert" role="alert">{{.Error}}</div>
+    {{end}}
+
+    <form method="post" action="/install" autocomplete="off">
+      <fieldset>
+        <legend>База данных</legend>
+
+        <label class="row">
+          <span>Тип БД</span>
+          <select name="db_type" id="db_type" onchange="toggleDB()">
+            <option value="postgres" {{if eq .DBType "postgres"}}selected{{end}}>PostgreSQL</option>
+            <option value="sqlite" {{if eq .DBType "sqlite"}}selected{{end}}>SQLite (файл)</option>
+          </select>
+        </label>
+
+        <div id="pg-fields">
+          <label class="row"><span>Хост</span>
+            <input name="db_host" value="{{.DBHost}}" placeholder="localhost">
+          </label>
+          <label class="row"><span>Порт</span>
+            <input name="db_port" value="{{.DBPort}}" inputmode="numeric" placeholder="5432">
+          </label>
+          <label class="row"><span>База</span>
+            <input name="db_name" value="{{.DBName}}" placeholder="eopds">
+          </label>
+          <label class="row"><span>Пользователь</span>
+            <input name="db_user" value="{{.DBUser}}" placeholder="eopds">
+          </label>
+          <label class="row"><span>Пароль БД</span>
+            <input name="db_password" type="password" autocomplete="new-password">
+          </label>
+        </div>
+
+        <div id="sqlite-fields" style="display:none">
+          <label class="row"><span>Путь к файлу</span>
+            <input name="db_path" value="{{.DBPath}}" placeholder="/config/eopds.db">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Администратор</legend>
+        <label class="row"><span>Логин</span>
+          <input name="username" value="{{.Username}}" required minlength="3" placeholder="admin">
+        </label>
+        <label class="row"><span>Email (необязательно)</span>
+          <input name="email" type="email" value="{{.Email}}" placeholder="admin@example.com">
+        </label>
+        <label class="row"><span>Пароль</span>
+          <input name="password" type="password" required minlength="8" autocomplete="new-password">
+        </label>
+        <label class="row"><span>Повтор пароля</span>
+          <input name="password2" type="password" required minlength="8" autocomplete="new-password">
+        </label>
+      </fieldset>
+
+      <button type="submit" class="btn-primary">Установить</button>
+    </form>
+  </main>
+
+  <script>
+    function toggleDB() {
+      var t = document.getElementById('db_type').value;
+      document.getElementById('pg-fields').style.display = (t === 'postgres') ? '' : 'none';
+      document.getElementById('sqlite-fields').style.display = (t === 'sqlite') ? '' : 'none';
+    }
+    toggleDB();
+  </script>
+</body>
+</html>

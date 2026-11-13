@@ -24,6 +24,7 @@
 ### Разработка
 - [architecture.md](architecture.md) — как устроен код.
 - [go/README.md](go/README.md) — Go-подсистема `eopds-go` (сканер + админка).
+- [go/install.md](go/install.md) — мастер первичной установки (root-админ, БД).
 - [go/api.md](go/api.md) — HTTP API Go-сервиса (версия, здоровье, обновления, форум).
 - [translating.md](translating.md) — как сделать перевод (для пулл-реквестов).
 - [contributing.md](contributing.md) — как внести вклад в проект.

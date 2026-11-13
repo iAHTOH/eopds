@@ -9,15 +9,18 @@ eopds-go/
 ├── go.mod
 ├── cmd/
 │   └── eopds/
-│       └── main.go          # точка входа: подкоманды scan / admin
+│       └── main.go          # точка входа: подкоманды serve/admin/scan
 ├── internal/
 │   ├── version/             # версия, git-commit, build-time
-│   ├── config/              # чтение ENV (EOPDS_DB_*, EOPDS_*), совместимость
+│   ├── config/              # чтение ENV (EOPDS_DB_*, EOPDS_*), /config/db.json
 │   ├── store/               # абстракция БД (интерфейс Store + sqlite/pgx)
-│   ├── admin/               # HTTP-сервер админки (stdlib, html/template)
+│   ├── migrate/             # встроенные миграции (go:embed) + раннер
+│   ├── auth/                # хэширование паролей (PBKDF2-SHA256)
+│   ├── admin/               # HTTP-сервер админки + мастер установки
 │   │   ├── server.go
+│   │   ├── install.go       # мастер первичной установки
 │   │   ├── handlers_*.go
-│   │   ├── templates/       # html/template (дашборд, темы)
+│   │   ├── templates/       # html/template (установка, дашборд)
 │   │   └── static/          # ванильный CSS/JS (единая тема портала)
 │   ├── upgrade/             # проверка версий (eopds.ru / github)
 │   ├── forum/               # клиент «последние темы» с кэшем
@@ -37,11 +40,12 @@ eopds-go/
 Параметры: `--root`, `--workers`, `--zip`, `--exts`, `--level`.
 Выдаёт JSON Lines в stdout (контракт `meta`). Подробнее — [scanner.md](scanner.md).
 
-### `eopds admin`
+### `eopds admin` / `eopds serve`
 
 HTTP-сервер админки и API. В разработке слушает отдельный порт
-(`--addr`, по умолчанию `:8081`); в едином портале — `:8080`.
-Эндпоинты — в [api.md](api.md).
+(`--addr`/`EOPDS_SERVER_ADDR`, по умолчанию `:8080`).
+При первом запуске (пустая/ненастроенная БД) показывает **мастер установки**
+(`/install`) — см. [install.md](install.md). Эндпоинты — в [api.md](api.md).
 
 ## Сборка
 
