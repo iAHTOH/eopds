@@ -44,10 +44,47 @@ Go-ядро — фактически новый проект со своим в�
   `INSERT ... ON CONFLICT` при bulk-загрузке).
 - **ID:** `BIGINT` (`GENERATED ... AS IDENTITY` в PG, `INTEGER PK` в SQLite).
 - **Счётчики:** денормализованный кэш в таблице `counters`.
-- **Пользователи:** собственная таблица `users` (уход от Django `auth_user`).
+- **Пользователи:** собственная таблица `users`. Роли `admin` (root, один) /
+  `moderator` / `reader` + анонимный `guest`; права по ролям в коде.
+  - Регистрация — **только по приглашению**; гость может оставить заявку
+    (`registration_requests`).
+  - Модератор приглашает **только читателей**; модераторов добавляет admin.
+  - Удаление пользователя — **физическое** (данные не нужны).
+- **Аудит:** таблица `audit_log` (кто что сделал).
+- **Настройки** (SMTP, боты, порог новинок, режим обложек) — таблица `settings`,
+  правит только админ.
 - **Обложки:** таблица `book_covers` есть всегда; режим «извлекать онлайн /
   хранить на диске» — переключатель в админке с пояснениями. Внешние обложки
   (от провайдеров) сохраняются всегда.
+
+## Роли и права
+
+Фиксированные роли (права зашиты под роль в коде, не в БД):
+
+| Действие | admin (root) | moderator | reader | guest (аноним) |
+|---|---|---|---|---|
+| Системные настройки | ✅ | ❌ | ❌ | ❌ |
+| Приглашение пользователей (email) | ✅ | ✅ | ❌ | ❌ |
+| Удаление пользователей | ✅ | ✅ | ❌ | ❌ |
+| Обработка заявок на регистрацию | ✅ | ✅ | ❌ | ❌ |
+| Жанры / аннотации / обложки (ручн. или провайдеры) | ✅ | ✅ | ❌ | ❌ |
+| Ручное добавление/удаление книг | ✅ | ✅ | ❌ | ❌ |
+| Просмотр логов/скан | ✅ | ✅ | ❌ | ❌ |
+| Статистика библиотеки | ✅ | ✅ | ✅ | ✅ |
+| Поиск / просмотр (обложка+аннотация) | ✅ | ✅ | ✅ | ✅ |
+| Скачивание / чтение книг | ✅ | ✅ | ✅ | ❌ |
+| Смена своего пароля | ✅ | ✅ | ✅ | — |
+| Подписка на новинки / новости версий | ✅ | ✅ | ✅ | — |
+| OPDS-выдача файлов | ✅ | ✅ | ✅ | ❌ |
+
+- **Root-админ** — один, создаётся при инсталляции, неудаляем/непонижаем.
+- Модераторов добавляет **только admin**; модератор приглашает **только
+  читателей** (`invites.role='reader'`). Право проверяется в коде.
+- **Гость** (аноним) видит главную как витрину: статистика + поиск + результаты
+  (обложка+аннотация), **без скачивания/чтения**. OPDS-фиды гостю —
+  навигационные/поисковые, но **без** acquisition-ссылок.
+- **OPDS отдаётся авторизованным** пользователям любой роли.
+- Заявка гостя на регистрацию → `registration_requests` → approve → `invite`.
 
 ## Автомиграции при старте
 
@@ -224,26 +261,80 @@ PK `(book_id, series_id)`; индекс `(series_id, seq_no)`.
 
 ### `users`
 Собственная таблица пользователей (уход от Django `auth_user`).
+Три роли: `admin` / `moderator` / `reader` (см. «Роли и права»).
 | Колонка | Тип | Примечание |
 |---|---|---|
 | id | bigint PK | |
 | username | text UNIQUE | |
-| email | text | |
+| email | text NULL | необязательный; просим после регистрации |
 | password_hash | text | bcrypt/argon2 |
+| role | text | `admin` / `moderator` / `reader` (CHECK) |
+| is_root | boolean | единственный root-админ (создан при инсталляции) |
 | is_active | boolean | |
-| is_admin | boolean | |
+| notify_new_books | boolean | подписка на новинки (сводка) |
+| notify_new_versions | boolean | новости о выходе новых версий |
+| messenger_kind | text NULL | `telegram`/… (для новостей через бота) |
+| messenger_id | text NULL | id в мессенджере |
 | created_at | timestamptz | |
+
+> **Root-админ — ровно один**, создаётся при инсталляции, удалить/понизить его
+> нельзя. Гарантируется частичным уникальным индексом `(is_root) WHERE is_root`.
+>
+> **Удаление пользователя — физическое** (`DELETE`). Принимается, что данные
+> пользователя больше не нужны. Связанные FK:
+> `bookshelf`/`bookmarks`/`sessions` → `ON DELETE CASCADE`;
+> `downloads.user_id`/`invites.created_by_id`/`audit_log.actor_id` →
+> `ON DELETE SET NULL` (история/статистика сохраняются анонимно).
 
 ### `invites` (Issues #3 — приглашения на email)
 | Колонка | Тип | Примечание |
 |---|---|---|
 | id | text PK (uuid) | |
 | email | text | |
+| role | text | кем станет приглашённый (обычно `reader`) |
 | token | text UNIQUE | |
 | created_at | timestamptz | |
 | expires_at | timestamptz | |
 | accepted_at | timestamptz NULL | |
 | created_by_id | bigint FK→users NULL | |
+
+### `registration_requests` (заявки гостей на регистрацию)
+Гость оставляет запрос модератору/админу (через форму/бот). После одобрения
+создаётся `invite`. Самостоятельной регистрации нет.
+| Колонка | Тип | Примечание |
+|---|---|---|
+| id | bigint PK | |
+| email | text | контакт заявителя |
+| message | text NULL | комментарий |
+| status | text | `new` / `approved` / `rejected` (CHECK) |
+| created_at | timestamptz | |
+| handled_at | timestamptz NULL | |
+| handled_by_id | bigint FK→users NULL | кто обработал (`ON DELETE SET NULL`) |
+Индекс `(status, created_at)` — очередь новых заявок.
+
+### `audit_log` (журнал действий администрации)
+Лёгкий аудит: кто что сделал (для разбора). `actor` — снимком + FK (SET NULL).
+| Колонка | Тип | Примечание |
+|---|---|---|
+| id | bigint PK | |
+| actor_id | bigint FK→users NULL | `ON DELETE SET NULL` |
+| actor_name | text | снимок имени (переживёт удаление) |
+| action | text | add/delete/edit/approve/… |
+| target_type | text | book/user/genre/… |
+| target_id | text NULL | id объекта (текстом — разные типы) |
+| details | text NULL | краткое описание |
+| created_at | timestamptz | |
+Индекс `(created_at)`; `(target_type, target_id)`.
+
+### `settings` (системные настройки)
+Аналог constance: ключ-значение, редактируется **только админом** (SMTP, боты,
+порог «новинок», режим обложек и т.п.).
+| Колонка | Тип | Примечание |
+|---|---|---|
+| key | text PK | имя настройки |
+| value | text | значение (JSON/строка) |
+| updated_at | timestamptz | |
+| updated_by_id | bigint FK→users NULL | `ON DELETE SET NULL` |
 
 ### `sessions`
 | Колонка | Тип | Примечание |
@@ -338,6 +429,8 @@ PK/уникальность `(book_id, kind)`; индекс `(book_id)`.
 - [x] Утвердить стратегию удаления (`avail` + size/mtime контейнеров).
 - [x] Добавить `isbn/publisher/publish_year/original_title/source/external_id`
       в `books`; таблицу `downloads`.
+- [x] Роли (admin/moderator/reader/guest), root-админ, `registration_requests`,
+      `audit_log`, `settings`, мессенджер в `users`.
 - [ ] Написать DDL/миграции (PG и SQLite), встроенные в бинарник (+ автомиграции).
 - [ ] Реализовать пакет `store` (интерфейс + pgx + sqlite).
 - [ ] Пакетная загрузка (`ON CONFLICT` / `CopyFrom`) для сканера.
