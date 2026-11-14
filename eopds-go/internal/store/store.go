@@ -49,11 +49,22 @@ type Store interface {
 	// GetSetting читает настройку; ErrNotFound, если нет.
 	GetSetting(ctx context.Context, key string) (string, error)
 
+	// Stats возвращает сводную статистику для дашборда.
+	Stats(ctx context.Context) (Stats, error)
+
 	// Ping проверяет соединение с БД.
 	Ping(ctx context.Context) error
 
 	// Close закрывает БД.
 	Close() error
+}
+
+// Stats — счётчики для дашборда админки.
+type Stats struct {
+	Books   int64
+	Authors int64
+	Series  int64
+	Users   int64
 }
 
 // User — пользователь системы.
@@ -172,6 +183,27 @@ func (s *DBStore) SchemaVersion(ctx context.Context) (int, error) {
 // Ping проверяет соединение.
 func (s *DBStore) Ping(ctx context.Context) error {
 	return s.db.PingContext(ctx)
+}
+
+// Stats возвращает количество книг, авторов, серий и пользователей.
+// Пустая/незаполненная БД даёт нули; ошибка только при сбое запроса.
+func (s *DBStore) Stats(ctx context.Context) (Stats, error) {
+	var st Stats
+	queries := []struct {
+		q   string
+		dst *int64
+	}{
+		{"SELECT COUNT(*) FROM books", &st.Books},
+		{"SELECT COUNT(*) FROM authors", &st.Authors},
+		{"SELECT COUNT(*) FROM series", &st.Series},
+		{"SELECT COUNT(*) FROM users", &st.Users},
+	}
+	for _, item := range queries {
+		if err := s.db.QueryRowContext(ctx, item.q).Scan(item.dst); err != nil {
+			return Stats{}, fmt.Errorf("store: stats: %w", err)
+		}
+	}
+	return st, nil
 }
 
 // Close закрывает БД.

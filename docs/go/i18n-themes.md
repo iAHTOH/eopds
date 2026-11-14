@@ -60,6 +60,13 @@
 подсветки активного раздела. Новые разделы добавляются пунктом меню и
 отдельным шаблоном-страницей.
 
+Разделы-заглушки (каркас): `/library`, `/scan`, `/settings` — рендерятся
+`handleSection(nav)`, шаблоны `library.html`/`scan.html`/`settings.html`.
+Все защищены проверкой установки (`requireInstalled`), поддерживают тему и язык.
+
+Счётчики дашборда берутся из БД: `store.Stats()` (COUNT по `books`, `authors`,
+`series`, `users`). При ошибке показываются нули.
+
 ## Как это связано с общим планом
 
 Согласно [../translating.md](../translating.md) и [../roadmap.md](../roadmap.md),

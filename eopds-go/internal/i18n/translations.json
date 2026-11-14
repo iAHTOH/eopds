@@ -53,7 +53,13 @@
     "dash.cards_users": "Users",
     "dash.placeholder": "Value",
     "dash.recent": "Recently added",
-    "dash.empty": "Nothing here yet."
+    "dash.empty": "Nothing here yet.",
+    "library.subtitle": "All books in the collection",
+    "library.stub": "The library browser (list, search, filters) will appear here.",
+    "scan.subtitle": "Scan folders and import books",
+    "scan.stub": "Folder scanning and import runs will be managed here.",
+    "settings.subtitle": "System settings",
+    "settings.stub": "Database, users, invites and portal settings will be configured here."
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -109,6 +115,12 @@
     "dash.cards_users": "Пользователи",
     "dash.placeholder": "Значение",
     "dash.recent": "Недавно добавлено",
-    "dash.empty": "Пока пусто."
+    "dash.empty": "Пока пусто.",
+    "library.subtitle": "Все книги коллекции",
+    "library.stub": "Здесь появится просмотр библиотеки (список, поиск, фильтры).",
+    "scan.subtitle": "Сканирование папок и импорт книг",
+    "scan.stub": "Здесь будут запускаться сканирования и импорт.",
+    "settings.subtitle": "Настройки системы",
+    "settings.stub": "Здесь будут настраиваться БД, пользователи, приглашения и параметры портала."
   }
 }

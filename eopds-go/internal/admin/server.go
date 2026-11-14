@@ -42,8 +42,11 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle}
 	pageFiles := map[string]string{
-		"install": "templates/install.html",
-		"home":    "templates/home.html",
+		"install":  "templates/install.html",
+		"home":     "templates/home.html",
+		"library":  "templates/library.html",
+		"scan":     "templates/scan.html",
+		"settings": "templates/settings.html",
 	}
 	for name, file := range pageFiles {
 		base := template.New("layout").Funcs(template.FuncMap{
@@ -80,6 +83,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /", s.handleHome)
 	mux.HandleFunc("GET /install", s.handleInstallForm)
 	mux.HandleFunc("POST /install", s.handleInstallSubmit)
+	mux.HandleFunc("GET /library", s.handleSection("library"))
+	mux.HandleFunc("GET /scan", s.handleSection("scan"))
+	mux.HandleFunc("GET /settings", s.handleSection("settings"))
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
@@ -169,6 +175,13 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	data := s.baseData(r)
 	data["Installed"] = true
 	data["Nav"] = "dashboard"
+	if st := s.getStore(); st != nil {
+		if stats, err := st.Stats(r.Context()); err != nil {
+			s.log.Warn("dashboard: stats", "err", err)
+		} else {
+			data["Stats"] = stats
+		}
+	}
 	s.render(w, r, "home", data)
 }
 
@@ -205,6 +218,28 @@ func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 		"built_at": version.BuildTime,
 		"go":       goVersion(),
 	})
+}
+
+// requireInstalled редиректит на /install, если система не установлена.
+// Возвращает true, если запрос можно продолжать.
+func (s *Server) requireInstalled(w http.ResponseWriter, r *http.Request) bool {
+	if !s.isInstalled(r.Context()) {
+		http.Redirect(w, r, "/install", http.StatusSeeOther)
+		return false
+	}
+	return true
+}
+
+// handleSection рендерит раздел админки (заглушка с общим каркасом).
+func (s *Server) handleSection(nav string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.requireInstalled(w, r) {
+			return
+		}
+		data := s.baseData(r)
+		data["Nav"] = nav
+		s.render(w, r, nav, data)
+	}
 }
 
 // writeJSON пишет JSON-ответ.
