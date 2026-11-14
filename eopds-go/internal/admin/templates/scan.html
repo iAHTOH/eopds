@@ -8,6 +8,7 @@
   {{if eq .ScanStatus "done"}}
   <div class="alert alert-ok" role="status">
     {{T "scan.done"}}: {{T "scan.found"}} {{.Found}} ({{T "scan.created"}} {{.Created}}, {{T "scan.updated"}} {{.Updated}}), {{T "scan.parsed"}} {{.Parsed}}{{if .Errors}}, {{T "scan.errors"}} {{.Errors}}{{end}}.
+    <br><span class="small muted">{{T "dash.scan_start"}}: {{.StartedAt}} · {{T "dash.scan_duration"}}: {{.Elapsed}}</span>
   </div>
   {{else if eq .ScanStatus "no_paths"}}
   <div class="alert" role="alert">{{T "scan.no_paths"}}</div>

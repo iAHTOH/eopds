@@ -13,7 +13,7 @@ services:
     volumes:
       - pgdata-go:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eopds -d eopds"]
+      test: [ "CMD-SHELL", "pg_isready -U eopds -d eopds" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -39,6 +39,8 @@ services:
       EOPDS_SERVER_ADDR: :8080
     volumes:
       - eopds-config:/config
+      # Коллекция книг (read-only): внутренние FB2 + ZIP-архивы с FB2.
+      - /run/media/ahtoh/SSD2/e-book:/library:ro
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -46,3 +48,4 @@ services:
 volumes:
   pgdata-go:
   eopds-config:
+

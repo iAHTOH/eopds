@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/emit"
 	"github.com/iAHTOH/eopds/eopds-go/internal/logx"
@@ -38,12 +39,14 @@ type Result struct {
 	BooksCreated int64
 	BooksUpdated int64
 	ImportErrors int64
+	StartedAt    time.Time     // когда началось сканирование
+	Elapsed      time.Duration // общая длительность
 }
 
 // Run сканирует каталоги roots и пишет результат в БД.
 // Возвращает статистику; ошибка — только если не удалось настроить поток.
 func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
-	res := Result{Roots: opts.Roots}
+	res := Result{Roots: opts.Roots, StartedAt: time.Now()}
 	if len(opts.Roots) == 0 {
 		return res, nil
 	}
@@ -103,6 +106,7 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 	_ = pw.Close()
 	wg.Wait()
 
+	res.Elapsed = time.Since(res.StartedAt)
 	if importErr != nil {
 		return res, importErr
 	}

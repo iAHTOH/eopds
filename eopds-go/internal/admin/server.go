@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
 	"github.com/iAHTOH/eopds/eopds-go/internal/i18n"
@@ -207,6 +208,13 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			s.log.Warn("dashboard: stats", "err", err)
 		} else {
 			data["Stats"] = stats
+		}
+		if sum, ok := loadScanSummary(r.Context(), st); ok {
+			data["LastScan"] = sum
+			if t, err := time.Parse(time.RFC3339, sum.StartedAt); err == nil {
+				data["LastScanStart"] = t.Local().Format("02.01.2006 15:04:05")
+			}
+			data["LastScanDur"] = formatDuration(time.Duration(sum.ElapsedMS) * time.Millisecond)
 		}
 	}
 	s.render(w, r, "home", data)

@@ -19,6 +19,23 @@
     </div>
   </div>
 
+  {{if .LastScan}}
+  <div class="card last-scan">
+    <header class="card-head">
+      <h1>{{T "dash.last_scan"}}</h1>
+    </header>
+    <div class="last-scan-line">
+      <span class="muted">{{T "dash.scan_start"}}:</span>
+      <span>{{.LastScanStart}}</span>
+      <span class="muted">{{T "dash.scan_duration"}}:</span>
+      <span>{{.LastScanDur}}</span>
+    </div>
+    <div class="last-scan-line small muted">
+      {{T "scan.found"}} {{.LastScan.Found}} · {{T "scan.created"}} {{.LastScan.Created}} · {{T "scan.updated"}} {{.LastScan.Updated}}{{if .LastScan.ImportErrors}} · {{T "scan.errors"}} {{.LastScan.ImportErrors}}{{end}}
+    </div>
+  </div>
+  {{end}}
+
   <div class="card">
     <header class="card-head">
       <h1>{{T "dash.recent"}}</h1>

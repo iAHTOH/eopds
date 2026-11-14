@@ -99,7 +99,10 @@
     "scan.paths_title": "Folders",
     "scan.run": "Run scan",
     "scan.edit_paths": "Edit folders",
-    "scan.note": "Books are written to the database; re-running updates existing entries."
+    "scan.note": "Books are written to the database; re-running updates existing entries.",
+    "dash.last_scan": "Last scan",
+    "dash.scan_start": "Started",
+    "dash.scan_duration": "Duration"
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -201,6 +204,9 @@
     "scan.paths_title": "Каталоги",
     "scan.run": "Запустить сканирование",
     "scan.edit_paths": "Изменить каталоги",
-    "scan.note": "Книги пишутся в базу; повторный запуск обновляет существующие записи."
+    "scan.note": "Книги пишутся в базу; повторный запуск обновляет существующие записи.",
+    "dash.last_scan": "Последнее сканирование",
+    "dash.scan_start": "Начало",
+    "dash.scan_duration": "Продолжительность"
   }
 }

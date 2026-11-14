@@ -1,7 +1,10 @@
 package admin
 
 import (
+	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/logx"
 	"github.com/iAHTOH/eopds/eopds-go/internal/scansvc"
@@ -58,16 +61,52 @@ func (s *Server) handleScanRun(w http.ResponseWriter, r *http.Request) {
 	}
 	s.log.Info("сканирование завершено",
 		"found", res.BooksFound, "created", res.BooksCreated, "updated", res.BooksUpdated,
-		"errors", res.ImportErrors)
+		"errors", res.ImportErrors, "elapsed", res.Elapsed.String())
+
+	// Сохраняем итог для дашборда (scan.last).
+	summary := ScanSummary{
+		StartedAt:    res.StartedAt.UTC().Format(time.RFC3339),
+		ElapsedMS:    res.Elapsed.Milliseconds(),
+		Found:        res.BooksFound,
+		Created:      res.BooksCreated,
+		Updated:      res.BooksUpdated,
+		ImportErrors: res.ImportErrors,
+	}
+	if enc, jerr := json.Marshal(summary); jerr == nil {
+		var uid int64
+		if u := currentUser(r); u != nil {
+			uid = u.ID
+		}
+		if serr := st.SetSetting(r.Context(), scanLastKey, string(enc), uid); serr != nil {
+			s.log.Warn("scan: save summary", "err", serr)
+		}
+	}
 
 	s.renderScanPage(w, r, "done", map[string]any{
-		"Found":   res.BooksFound,
-		"Created": res.BooksCreated,
-		"Updated": res.BooksUpdated,
-		"Parsed":  res.BooksParsed,
-		"Errors":  res.ImportErrors,
-		"Roots":   res.Roots,
+		"Found":     res.BooksFound,
+		"Created":   res.BooksCreated,
+		"Updated":   res.BooksUpdated,
+		"Parsed":    res.BooksParsed,
+		"Errors":    res.ImportErrors,
+		"Roots":     res.Roots,
+		"StartedAt": res.StartedAt.Format("02.01.2006 15:04:05"),
+		"Elapsed":   formatDuration(res.Elapsed),
 	})
+}
+
+// formatDuration форматирует длительность по-человечески (ч/м/с).
+func formatDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	sec := int(d.Seconds()) % 60
+	if h > 0 {
+		return strconv.Itoa(h) + " ч " + strconv.Itoa(m) + " мин " + strconv.Itoa(sec) + " с"
+	}
+	if m > 0 {
+		return strconv.Itoa(m) + " мин " + strconv.Itoa(sec) + " с"
+	}
+	return strconv.Itoa(sec) + " с"
 }
 
 // renderScanPage рендерит /scan с сообщением статуса.

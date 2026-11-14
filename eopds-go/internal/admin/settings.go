@@ -13,6 +13,33 @@ import (
 // scanPathsKey — ключ настройки со списком каталогов для сканирования (JSON).
 const scanPathsKey = "scan.paths"
 
+// scanLastKey — ключ настройки с итогом последнего сканирования (JSON ScanSummary).
+const scanLastKey = "scan.last"
+
+// ScanSummary — сохранённый итог последнего сканирования (для дашборда).
+type ScanSummary struct {
+	StartedAt    string `json:"started_at"`    // RFC3339
+	ElapsedMS    int64  `json:"elapsed_ms"`    // длительность в мс
+	Found        int64  `json:"found"`         // найдено книг
+	Created      int64  `json:"created"`       // добавлено
+	Updated      int64  `json:"updated"`       // обновлено
+	ImportErrors int64  `json:"import_errors"` // ошибок импорта
+}
+
+// loadScanSummary возвращает итог последнего сканирования.
+// ok=false, если сканирование ещё не выполнялось.
+func loadScanSummary(ctx context.Context, st store.Store) (ScanSummary, bool) {
+	raw, err := st.GetSetting(ctx, scanLastKey)
+	if err != nil || raw == "" {
+		return ScanSummary{}, false
+	}
+	var s ScanSummary
+	if err := json.Unmarshal([]byte(raw), &s); err != nil {
+		return ScanSummary{}, false
+	}
+	return s, true
+}
+
 // loadScanPaths возвращает список каталогов сканирования из настроек.
 // Пустой список, если ещё не задан.
 func loadScanPaths(ctx context.Context, st store.Store) ([]string, error) {
