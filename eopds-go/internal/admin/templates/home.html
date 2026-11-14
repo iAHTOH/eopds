@@ -1,10 +1,30 @@
 {{define "content"}}
-<div class="card">
-  <header class="card-head">
-    <h1>{{T "home.title"}}</h1>
-    <p class="muted">{{T "home.subtitle"}}</p>
-  </header>
-  <p>{{T "home.ready"}}</p>
-  <p class="muted">{{T "home.soon"}}</p>
-</div>
+<section class="dash">
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-label">{{T "dash.cards_books"}}</span>
+      <span class="stat-value">—</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">{{T "dash.cards_authors"}}</span>
+      <span class="stat-value">—</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">{{T "dash.cards_series"}}</span>
+      <span class="stat-value">—</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">{{T "dash.cards_users"}}</span>
+      <span class="stat-value">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <header class="card-head">
+      <h1>{{T "dash.recent"}}</h1>
+      <p class="muted">{{T "home.subtitle"}}</p>
+    </header>
+    <p class="muted">{{T "dash.empty"}}</p>
+  </div>
+</section>
 {{end}}

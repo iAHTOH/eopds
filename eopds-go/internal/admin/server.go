@@ -152,6 +152,7 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 		"Lang":       resolveLang(r),
 		"Langs":      s.i18n.Languages(),
 		"FooterText": "Жизнь должна быть наполнена книгами, которые наполнены жизнью.",
+		"Nav":        "",
 	}
 }
 
@@ -167,6 +168,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	}
 	data := s.baseData(r)
 	data["Installed"] = true
+	data["Nav"] = "dashboard"
 	s.render(w, r, "home", data)
 }
 

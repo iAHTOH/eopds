@@ -17,6 +17,8 @@
   --btn-text: #ffffff;
   --focus-ring: rgba(217, 77, 22, .22);
 
+  --hover-bg: rgba(0,0,0,.04);
+  --active-bg: rgba(217,77,22,.10);
   --hint-bg: #faf3ea;
   --alert-bg: #fdecea;
   --alert-border: #f5c2b8;
