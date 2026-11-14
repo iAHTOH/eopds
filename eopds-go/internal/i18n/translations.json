@@ -59,7 +59,19 @@
     "scan.subtitle": "Scan folders and import books",
     "scan.stub": "Folder scanning and import runs will be managed here.",
     "settings.subtitle": "System settings",
-    "settings.stub": "Database, users, invites and portal settings will be configured here."
+    "settings.stub": "Database, users, invites and portal settings will be configured here.",
+    "nav.home": "Home",
+    "nav.logout": "Log out",
+    "login.title": "Sign in",
+    "login.username": "Login",
+    "login.password": "Password",
+    "login.submit": "Sign in",
+    "login.err.credentials": "Invalid login or password.",
+    "login.err.internal": "Internal error. Check the server log.",
+    "portal.title": "Easy OPDS",
+    "portal.subtitle": "Home library portal",
+    "portal.stub": "Public catalog will be here (old /web/ style).",
+    "portal.to_admin": "Go to admin panel"
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -121,6 +133,18 @@
     "scan.subtitle": "Сканирование папок и импорт книг",
     "scan.stub": "Здесь будут запускаться сканирования и импорт.",
     "settings.subtitle": "Настройки системы",
-    "settings.stub": "Здесь будут настраиваться БД, пользователи, приглашения и параметры портала."
+    "settings.stub": "Здесь будут настраиваться БД, пользователи, приглашения и параметры портала.",
+    "nav.home": "На главную",
+    "nav.logout": "Выйти",
+    "login.title": "Вход",
+    "login.username": "Логин",
+    "login.password": "Пароль",
+    "login.submit": "Войти",
+    "login.err.credentials": "Неверный логин или пароль.",
+    "login.err.internal": "Внутренняя ошибка. Проверьте журнал сервера.",
+    "portal.title": "Easy OPDS",
+    "portal.subtitle": "Портал домашней библиотеки",
+    "portal.stub": "Здесь будет публичный каталог (стиль старого /web/).",
+    "portal.to_admin": "В админ-панель"
   }
 }

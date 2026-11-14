@@ -52,6 +52,15 @@ type Store interface {
 	// Stats возвращает сводную статистику для дашборда.
 	Stats(ctx context.Context) (Stats, error)
 
+	// CreateSession создаёт сессию пользователя.
+	CreateSession(ctx context.Context, id string, userID int64, expiresAt time.Time) error
+	// GetSessionUser возвращает пользователя активной сессии (ErrNotFound).
+	GetSessionUser(ctx context.Context, id string) (*User, error)
+	// DeleteSession удаляет сессию (logout).
+	DeleteSession(ctx context.Context, id string) error
+	// PurgeExpiredSessions удаляет истёкшие сессии.
+	PurgeExpiredSessions(ctx context.Context) error
+
 	// Ping проверяет соединение с БД.
 	Ping(ctx context.Context) error
 

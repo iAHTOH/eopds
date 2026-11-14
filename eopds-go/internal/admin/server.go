@@ -47,6 +47,8 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		"library":  "templates/library.html",
 		"scan":     "templates/scan.html",
 		"settings": "templates/settings.html",
+		"login":    "templates/login.html",
+		"portal":   "templates/portal.html",
 	}
 	for name, file := range pageFiles {
 		base := template.New("layout").Funcs(template.FuncMap{
@@ -80,12 +82,16 @@ func (s *Server) getStore() store.Store {
 // Handler возвращает корневой http.Handler с маршрутами.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", s.handleHome)
+	mux.HandleFunc("GET /", s.handlePortal)
 	mux.HandleFunc("GET /install", s.handleInstallForm)
 	mux.HandleFunc("POST /install", s.handleInstallSubmit)
-	mux.HandleFunc("GET /library", s.handleSection("library"))
-	mux.HandleFunc("GET /scan", s.handleSection("scan"))
-	mux.HandleFunc("GET /settings", s.handleSection("settings"))
+	mux.HandleFunc("GET /login", s.handleLoginForm)
+	mux.HandleFunc("POST /login", s.handleLoginSubmit)
+	mux.HandleFunc("POST /logout", s.handleLogout)
+	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
+	mux.HandleFunc("GET /library", s.requireAuth(s.handleSection("library")))
+	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
+	mux.HandleFunc("GET /settings", s.requireAuth(s.handleSection("settings")))
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
@@ -151,7 +157,12 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, dat
 
 // baseData — общие данные для шаблонов (с учётом выбранной темы).
 func (s *Server) baseData(r *http.Request) map[string]any {
+	var user *store.User
+	if u := currentUser(r); u != nil {
+		user = u
+	}
 	return map[string]any{
+		"User":       user,
 		"Version":    version.String(),
 		"AppName":    "EOPDS",
 		"Theme":      resolveTheme(r),
@@ -162,8 +173,8 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 	}
 }
 
-// handleHome — главная админки (заглушка).
-func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
+// handlePortal — публичная главная (заглушка; позже — стиль старого /web/).
+func (s *Server) handlePortal(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
@@ -172,6 +183,13 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/install", http.StatusSeeOther)
 		return
 	}
+	data := s.baseData(r)
+	data["Nav"] = ""
+	s.render(w, r, "portal", data)
+}
+
+// handleDashboard — главная админки со статистикой (требует входа).
+func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	data := s.baseData(r)
 	data["Installed"] = true
 	data["Nav"] = "dashboard"

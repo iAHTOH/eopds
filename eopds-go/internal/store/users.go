@@ -63,15 +63,14 @@ func (s *DBStore) CreateRootAdmin(ctx context.Context, username, passwordHash, e
 
 // GetUserByUsername ищет пользователя по логину.
 func (s *DBStore) GetUserByUsername(ctx context.Context, username string) (*User, error) {
-	bt := s.boolTrue()
 	q := fmt.Sprintf(
-		"SELECT id, username, email, password_hash, role, is_root = %s, is_active = %s, %s "+
+		"SELECT id, username, email, password_hash, role, is_root, is_active, %s "+
 			"FROM users WHERE username = %s",
-		bt, bt, s.createdAtExpr(), s.ph(1))
+		s.createdAtExpr(""), s.ph(1))
 
 	u := &User{}
 	var email sql.NullString
-	var isRoot, isActive int64
+	var isRoot, isActive any
 	err := s.db.QueryRowContext(ctx, q, username).Scan(
 		&u.ID, &u.Username, &email, &u.PasswordHash, &u.Role,
 		&isRoot, &isActive, &u.CreatedAt,
@@ -82,12 +81,30 @@ func (s *DBStore) GetUserByUsername(ctx context.Context, username string) (*User
 		}
 		return nil, fmt.Errorf("store: get user: %w", err)
 	}
-	u.IsRoot = isRoot != 0
-	u.IsActive = isActive != 0
+	u.IsRoot = asBool(isRoot)
+	u.IsActive = asBool(isActive)
 	if email.Valid {
 		u.Email = &email.String
 	}
 	return u, nil
+}
+
+// asBool приводит значение (PG bool или SQLite 0/1) к bool.
+func asBool(v any) bool {
+	switch x := v.(type) {
+	case bool:
+		return x
+	case int64:
+		return x != 0
+	case int:
+		return x != 0
+	case []byte:
+		return len(x) > 0 && (x[0] == '1' || x[0] == 't' || x[0] == 'T')
+	case string:
+		return x == "1" || x == "true" || x == "t"
+	default:
+		return false
+	}
 }
 
 // SetSetting сохраняет настройку (upsert).
@@ -124,11 +141,15 @@ func (s *DBStore) GetSetting(ctx context.Context, key string) (string, error) {
 }
 
 // createdAtExpr возвращает выражение, приводящее created_at к строке ISO-8601.
-func (s *DBStore) createdAtExpr() string {
-	if s.kind == config.DBSQLite {
-		return "created_at" // уже TEXT ISO-8601
+// col — имя колонки (для JOIN — с префиксом, например "u.created_at").
+func (s *DBStore) createdAtExpr(col string) string {
+	if col == "" {
+		col = "created_at"
 	}
-	return "to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')"
+	if s.kind == config.DBSQLite {
+		return col // уже TEXT ISO-8601
+	}
+	return "to_char(" + col + " AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')"
 }
 
 // isUniqueViolation определяет нарушение уникальности в PG/SQLite по строке.

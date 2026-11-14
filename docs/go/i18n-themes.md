@@ -60,9 +60,26 @@
 подсветки активного раздела. Новые разделы добавляются пунктом меню и
 отдельным шаблоном-страницей.
 
+В шапке (при входе) есть кнопка **домик** (переход на публичную главную `/`)
+и кнопка **выход** (power, POST `/logout`).
+
 Разделы-заглушки (каркас): `/library`, `/scan`, `/settings` — рендерятся
 `handleSection(nav)`, шаблоны `library.html`/`scan.html`/`settings.html`.
-Все защищены проверкой установки (`requireInstalled`), поддерживают тему и язык.
+Все защищены проверкой установки и **входом** (`requireAuth`), поддерживают
+тему и язык.
+
+## Аутентификация и сессии
+
+- Публичное: `/` (главная-заглушка портала), `/login`, `/install`, `/static`,
+  `/api/health`, `/api/version`.
+- Защищено (`requireAuth`): `/dashboard`, `/library`, `/scan`, `/settings`.
+  Без входа — редирект на `/login?next=<путь>`.
+- Вход: `GET/POST /login`. Пароль проверяется `auth.VerifyPassword` (PBKDF2),
+  при успехе создаётся сессия в таблице `sessions` и выставляется HttpOnly
+  cookie `eopds_session` (SameSite=Lax, TTL 30 дней).
+- Выход: `POST /logout` — удаляет сессию и cookie, ведёт на `/`.
+- Сессии в БД: `store.CreateSession/GetSessionUser/DeleteSession/PurgeExpiredSessions`.
+- Публичную главную `/` планируется оформить в стиле старого `/web/`.
 
 Счётчики дашборда берутся из БД: `store.Stats()` (COUNT по `books`, `authors`,
 `series`, `users`). При ошибке показываются нули.
