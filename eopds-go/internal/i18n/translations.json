@@ -80,7 +80,13 @@
     "users.created": "Created",
     "users.active": "active",
     "users.inactive": "inactive",
-    "users.empty": "No users."
+    "users.empty": "No users.",
+    "settings.scan_dirs": "Scanning folders",
+    "settings.scan_dirs_hint": "Folders where books are scanned (one path per field).",
+    "settings.scan_example": "/books",
+    "settings.add_dir": "Add folder",
+    "settings.remove_dir": "Remove folder",
+    "settings.save": "Save"
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -163,6 +169,12 @@
     "users.created": "Создан",
     "users.active": "активен",
     "users.inactive": "отключён",
-    "users.empty": "Пользователей нет."
+    "users.empty": "Пользователей нет.",
+    "settings.scan_dirs": "Каталоги сканирования",
+    "settings.scan_dirs_hint": "Папки, в которых сканируются книги (по одному пути в поле).",
+    "settings.scan_example": "/books",
+    "settings.add_dir": "Добавить каталог",
+    "settings.remove_dir": "Удалить каталог",
+    "settings.save": "Сохранить"
   }
 }

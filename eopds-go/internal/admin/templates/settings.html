@@ -5,6 +5,27 @@
     <p class="muted">{{T "settings.subtitle"}}</p>
   </header>
 
+  <h2 class="section-title" id="scan">{{T "settings.scan_dirs"}}</h2>
+  <p class="muted">{{T "settings.scan_dirs_hint"}}</p>
+  <form method="post" action="/settings/scan-dirs" class="scan-dirs">
+    <div id="scan-dirs-list" class="scan-dirs-list">
+      {{range .ScanPaths}}
+      <div class="scan-dir-row">
+        <input name="path" value="{{.}}" placeholder="{{T "settings.scan_example"}}" spellcheck="false">
+        <button type="button" class="icon-btn dir-remove" title="{{T "settings.remove_dir"}}" aria-label="{{T "settings.remove_dir"}}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 12h14"/></svg>
+        </button>
+      </div>
+      {{end}}
+    </div>
+    <div class="scan-dirs-actions">
+      <button type="button" class="icon-btn" id="add-scan-dir" title="{{T "settings.add_dir"}}" aria-label="{{T "settings.add_dir"}}">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button type="submit" class="btn-primary btn-inline">{{T "settings.save"}}</button>
+    </div>
+  </form>
+
   <h2 class="section-title">{{T "settings.users"}}</h2>
   <table class="table">
     <thead>
@@ -35,4 +56,27 @@
 
   <p class="muted">{{T "settings.stub"}}</p>
 </div>
+<script>
+(function(){
+  var list = document.getElementById('scan-dirs-list');
+  var add = document.getElementById('add-scan-dir');
+  if (!add || !list) return;
+  add.addEventListener('click', function(){
+    var row = list.querySelector('.scan-dir-row');
+    if (!row) return;
+    var clone = row.cloneNode(true);
+    var input = clone.querySelector('input');
+    if (input) input.value = '';
+    list.appendChild(clone);
+    if (input) input.focus();
+  });
+  list.addEventListener('click', function(e){
+    var btn = e.target.closest('.dir-remove');
+    if (!btn) return;
+    var rows = list.querySelectorAll('.scan-dir-row');
+    if (rows.length > 1) { btn.closest('.scan-dir-row').remove(); }
+    else { var i = btn.closest('.scan-dir-row').querySelector('input'); if (i) i.value = ''; }
+  });
+})();
+</script>
 {{end}}

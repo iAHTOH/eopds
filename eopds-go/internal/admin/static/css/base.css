@@ -184,6 +184,15 @@ input:focus, select:focus {
 .portal-actions { margin-top: 16px; }
 .portal-actions .btn-primary { display: inline-block; text-decoration: none; width: auto; padding: 10px 18px; }
 
+/* --- Каталоги сканирования --- */
+.scan-dirs { margin-bottom: 24px; }
+.scan-dirs-list { display: flex; flex-direction: column; gap: 8px; }
+.scan-dir-row { display: flex; align-items: center; gap: 8px; }
+.scan-dir-row input { flex: 1 1 auto; }
+.scan-dir-row .icon-btn { flex: 0 0 auto; height: 38px; width: 38px; }
+.scan-dirs-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.btn-inline { width: auto; padding: 9px 18px; margin: 0; }
+
 /* --- Таблицы и бейджи --- */
 .section-title { font-size: 16px; margin: 4px 0 12px; color: var(--text); }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }

@@ -93,6 +93,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library", s.requireAuth(s.handleSection("library")))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))
+	mux.HandleFunc("POST /settings/scan-dirs", s.requireAuth(s.requireRole("admin", s.handleSaveScanPaths)))
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
@@ -261,12 +262,18 @@ func (s *Server) handleSection(nav string) http.HandlerFunc {
 		data := s.baseData(r)
 		data["Nav"] = nav
 		if nav == "settings" {
-			if st := s.getStore(); st != nil {
+			st := s.getStore()
+			if st != nil {
 				if users, err := st.ListUsers(r.Context()); err != nil {
 					s.log.Warn("settings: list users", "err", err)
 				} else {
 					data["Users"] = users
 				}
+				paths, err := loadScanPaths(r.Context(), st)
+				if err != nil {
+					s.log.Warn("settings: scan paths", "err", err)
+				}
+				data["ScanPaths"] = paths
 			}
 		}
 		s.render(w, r, nav, data)
