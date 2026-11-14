@@ -47,6 +47,9 @@ type Store interface {
 	// ListUsers возвращает всех пользователей.
 	ListUsers(ctx context.Context) ([]User, error)
 
+	// ImportBook вставляет/обновляет книгу со связями (idempotent).
+	ImportBook(ctx context.Context, b IngestBook) (IngestResult, error)
+
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error
 	// GetSetting читает настройку; ErrNotFound, если нет.

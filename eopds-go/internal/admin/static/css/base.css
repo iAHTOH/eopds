@@ -180,6 +180,13 @@ input:focus, select:focus {
   border-radius: 8px;
 }
 
+.alert-ok { color: #7fce85; background: rgba(89,184,94,.10); border-color: rgba(89,184,94,.35); }
+.path-list { margin: 8px 0 16px; padding-left: 0; list-style: none; }
+.path-list li { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.path-list code { font-size: 13px; }
+.scan-run { display: flex; align-items: center; gap: 14px; margin: 8px 0 16px; }
+.small { font-size: 12px; }
+
 .logout-form { display: inline-flex; margin: 0; }
 .portal-actions { margin-top: 16px; }
 .portal-actions .btn-primary { display: inline-block; text-decoration: none; width: auto; padding: 10px 18px; }

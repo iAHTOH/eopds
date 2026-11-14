@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
 	"github.com/iAHTOH/eopds/eopds-go/internal/i18n"
@@ -32,6 +33,8 @@ type Server struct {
 	// Наборы шаблонов: каждая страница = layout + страница (изолированно).
 	pages map[string]*template.Template
 	i18n  *i18n.Bundle
+
+	scanning atomic.Bool // защита от одновременного запуска сканирования
 }
 
 // New создаёт сервер и строит наборы шаблонов.
@@ -92,6 +95,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
 	mux.HandleFunc("GET /library", s.requireAuth(s.handleSection("library")))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
+	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))
 	mux.HandleFunc("POST /settings/scan-dirs", s.requireAuth(s.requireRole("admin", s.handleSaveScanPaths)))
 	mux.HandleFunc("GET /healthz", s.handleHealth)

@@ -4,6 +4,33 @@
     <h1>{{T "nav.scan"}}</h1>
     <p class="muted">{{T "scan.subtitle"}}</p>
   </header>
-  <p class="muted">{{T "scan.stub"}}</p>
+
+  {{if eq .ScanStatus "done"}}
+  <div class="alert alert-ok" role="status">
+    {{T "scan.done"}}: {{T "scan.found"}} {{.Found}}, {{T "scan.parsed"}} {{.Parsed}}{{if .Errors}}, {{T "scan.errors"}} {{.Errors}}{{end}}.
+  </div>
+  {{else if eq .ScanStatus "no_paths"}}
+  <div class="alert" role="alert">{{T "scan.no_paths"}}</div>
+  {{else if eq .ScanStatus "busy"}}
+  <div class="alert" role="alert">{{T "scan.busy"}}</div>
+  {{else if eq .ScanStatus "error"}}
+  <div class="alert" role="alert">{{T "scan.error"}}</div>
+  {{end}}
+
+  <h2 class="section-title">{{T "scan.paths_title"}}</h2>
+  {{if .ScanPaths}}
+  <ul class="path-list">
+    {{range .ScanPaths}}{{if .}}<li><code>{{.}}</code></li>{{end}}{{end}}
+  </ul>
+  {{else}}
+  <p class="muted">{{T "scan.no_paths"}}</p>
+  {{end}}
+
+  <form method="post" action="/scan/run" class="scan-run">
+    <button type="submit" class="btn-primary btn-inline">{{T "scan.run"}}</button>
+    <a class="muted" href="/settings#scan">{{T "scan.edit_paths"}}</a>
+  </form>
+
+  <p class="muted small">{{T "scan.note"}}</p>
 </div>
 {{end}}

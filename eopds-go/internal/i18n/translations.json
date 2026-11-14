@@ -86,7 +86,18 @@
     "settings.scan_example": "/books",
     "settings.add_dir": "Add folder",
     "settings.remove_dir": "Remove folder",
-    "settings.save": "Save"
+    "settings.save": "Save",
+    "scan.done": "Scan complete",
+    "scan.found": "found",
+    "scan.parsed": "imported",
+    "scan.errors": "errors",
+    "scan.no_paths": "No scanning folders set. Add them in Settings.",
+    "scan.busy": "A scan is already running.",
+    "scan.error": "Scan failed. See server log.",
+    "scan.paths_title": "Folders",
+    "scan.run": "Run scan",
+    "scan.edit_paths": "Edit folders",
+    "scan.note": "Books are written to the database; re-running updates existing entries."
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -175,6 +186,17 @@
     "settings.scan_example": "/books",
     "settings.add_dir": "Добавить каталог",
     "settings.remove_dir": "Удалить каталог",
-    "settings.save": "Сохранить"
+    "settings.save": "Сохранить",
+    "scan.done": "Сканирование завершено",
+    "scan.found": "найдено",
+    "scan.parsed": "импортировано",
+    "scan.errors": "ошибок",
+    "scan.no_paths": "Каталоги сканирования не заданы. Добавьте их в настройках.",
+    "scan.busy": "Сканирование уже выполняется.",
+    "scan.error": "Ошибка сканирования. Смотрите журнал сервера.",
+    "scan.paths_title": "Каталоги",
+    "scan.run": "Запустить сканирование",
+    "scan.edit_paths": "Изменить каталоги",
+    "scan.note": "Книги пишутся в базу; повторный запуск обновляет существующие записи."
   }
 }
