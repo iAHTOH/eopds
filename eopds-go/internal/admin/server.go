@@ -3,21 +3,21 @@
 // Стек — чистый stdlib: net/http + html/template + ванильный CSS. CGO выключен.
 //
 // Логика маршрутов:
-//   - если БД ещё не сконфигурирована/недоступна или не установлена → мастер
+//   - если БД не сконфигурирована/недоступна или не установлена → мастер
 //     установки (/install);
-//   - после установки — редирект на главную админки (заглушка на этом этапе).
+//   - после установки — главная админки (заглушка на этом этапе).
 package admin
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"html/template"
 	"log/slog"
 	"net/http"
 	"sync"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
+	"github.com/iAHTOH/eopds/eopds-go/internal/i18n"
 	"github.com/iAHTOH/eopds/eopds-go/internal/store"
 	"github.com/iAHTOH/eopds/eopds-go/internal/version"
 )
@@ -29,17 +29,34 @@ type Server struct {
 	mu    sync.RWMutex
 	store store.Store // nil, пока не установлено/не подключено
 
-	tmpl *template.Template
+	// Наборы шаблонов: каждая страница = layout + страница (изолированно).
+	pages map[string]*template.Template
+	i18n  *i18n.Bundle
 }
 
-// New создаёт сервер и парсит встроенные шаблоны.
+// New создаёт сервер и строит наборы шаблонов.
 func New(cfg config.Config, log *slog.Logger) (*Server, error) {
-	s := &Server{cfg: cfg, log: log}
-	tmpl, err := template.ParseFS(templatesFS, "templates/*.html")
+	bundle, err := i18n.Load()
 	if err != nil {
 		return nil, err
 	}
-	s.tmpl = tmpl
+	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle}
+	pageFiles := map[string]string{
+		"install": "templates/install.html",
+		"home":    "templates/home.html",
+	}
+	for name, file := range pageFiles {
+		base := template.New("layout").Funcs(template.FuncMap{
+			"T":        func(k string) string { return k },
+			"langName": langName,
+			"langCode": langCode,
+		})
+		tmpl, err := base.ParseFS(templatesFS, "templates/layout.html", file)
+		if err != nil {
+			return nil, err
+		}
+		s.pages[name] = tmpl
+	}
 	return s, nil
 }
 
@@ -63,15 +80,33 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /", s.handleHome)
 	mux.HandleFunc("GET /install", s.handleInstallForm)
 	mux.HandleFunc("POST /install", s.handleInstallSubmit)
-	mux.HandleFunc("GET /healthz", s.handleHealth) // простой алиас
+	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
 	mux.Handle("GET /static/", http.FileServer(http.FS(staticFS)))
-	return mux
+	return s.withThemeCookie(mux)
+}
+
+// withThemeCookie запоминает выбранную тему в cookie.
+func (s *Server) withThemeCookie(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if t := r.URL.Query().Get("theme"); isKnownTheme(t) {
+			http.SetCookie(w, &http.Cookie{
+				Name: "theme", Value: t, Path: "/", MaxAge: 31536000,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+		if l := r.URL.Query().Get("lang"); s.i18n.Has(l) {
+			http.SetCookie(w, &http.Cookie{
+				Name: "lang", Value: l, Path: "/", MaxAge: 31536000,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // isInstalled проверяет, пройден ли мастер установки.
-// Пустая БД/ошибка → false (показываем установщик).
 func (s *Server) isInstalled(ctx context.Context) bool {
 	st := s.getStore()
 	if st == nil {
@@ -85,24 +120,42 @@ func (s *Server) isInstalled(ctx context.Context) bool {
 	return ok
 }
 
-// render рендерит шаблон в ответ.
-func (s *Server) render(w http.ResponseWriter, name string, data any) {
+// render рендерит страницу (layout + контент) в ответ.
+func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, data map[string]any) {
+	tmpl, ok := s.pages[page]
+	if !ok {
+		s.log.Error("render: unknown page", "page", page)
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	tr := s.i18n.Translator(resolveLang(r))
+	cloned, err := tmpl.Clone()
+	if err != nil {
+		s.log.Error("render: clone", "page", page, "err", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.tmpl.ExecuteTemplate(w, name, data); err != nil {
-		s.log.Error("render", "tmpl", name, "err", err)
+	if err := cloned.ExecuteTemplate(w, "layout", data); err != nil {
+		s.log.Error("render", "page", page, "err", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
 
-// baseData — общие данные для шаблонов.
-func (s *Server) baseData() map[string]any {
+// baseData — общие данные для шаблонов (с учётом выбранной темы).
+func (s *Server) baseData(r *http.Request) map[string]any {
 	return map[string]any{
-		"Version": version.String(),
-		"AppName": "EOPDS",
+		"Version":    version.String(),
+		"AppName":    "EOPDS",
+		"Theme":      resolveTheme(r),
+		"Lang":       resolveLang(r),
+		"Langs":      s.i18n.Languages(),
+		"FooterText": "Жизнь должна быть наполнена книгами, которые наполнены жизнью.",
 	}
 }
 
-// handleHome — заглушка главной админки.
+// handleHome — главная админки (заглушка).
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -112,9 +165,9 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/install", http.StatusSeeOther)
 		return
 	}
-	data := s.baseData()
+	data := s.baseData(r)
 	data["Installed"] = true
-	s.render(w, "home.html", data)
+	s.render(w, r, "home", data)
 }
 
 // handleHealth — состояние сервиса (GET /api/health, алиас /healthz).
@@ -157,18 +210,4 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
-}
-
-// errUser — ошибка, которую можно показать пользователю на форме.
-type formError string
-
-func (e formError) Error() string { return string(e) }
-
-// asFormError извлекает текст для формы.
-func asFormError(err error) string {
-	var fe formError
-	if errors.As(err, &fe) {
-		return string(fe)
-	}
-	return "Внутренняя ошибка. Проверьте журнал сервера."
 }

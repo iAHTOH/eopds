@@ -12,6 +12,7 @@ eopds-go/
 │       └── main.go          # точка входа: подкоманды serve/admin/scan
 ├── internal/
 │   ├── version/             # версия, git-commit, build-time
+│   ├── i18n/                # translations.json (go:embed), LINGUAS, Translator
 │   ├── config/              # чтение ENV (EOPDS_DB_*, EOPDS_*), /config/db.json
 │   ├── store/               # абстракция БД (интерфейс Store + sqlite/pgx)
 │   ├── migrate/             # встроенные миграции (go:embed) + раннер

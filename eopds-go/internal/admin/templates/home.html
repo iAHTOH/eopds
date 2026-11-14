@@ -1,19 +1,10 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{.AppName}} — админка</title>
-  <link rel="stylesheet" href="/static/admin.css">
-</head>
-<body>
-  <main class="card">
-    <header class="card-head">
-      <h1>{{.AppName}}</h1>
-      <p class="muted">Панель управления · v{{.Version}}</p>
-    </header>
-    <p>Установка завершена. Административная панель в разработке.</p>
-    <p class="muted">Дашборд, сканирование и управление появятся в следующих версиях.</p>
-  </main>
-</body>
-</html>
+{{define "content"}}
+<div class="card">
+  <header class="card-head">
+    <h1>{{T "home.title"}}</h1>
+    <p class="muted">{{T "home.subtitle"}}</p>
+  </header>
+  <p>{{T "home.ready"}}</p>
+  <p class="muted">{{T "home.soon"}}</p>
+</div>
+{{end}}

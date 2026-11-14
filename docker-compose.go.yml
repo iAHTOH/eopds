@@ -1,0 +1,48 @@
+# Демонстрационный стек Go-ядра eopds: сервер + PostgreSQL.
+# Запуск:   docker compose -f docker-compose.go.yml up --build -d
+# Открыть:  http://localhost:8080/  (мастер установки)
+# Логи:     docker compose -f docker-compose.go.yml logs -f eopds-go
+services:
+  db-go:
+    image: postgres:16-alpine
+    container_name: eopds-go-db
+    environment:
+      POSTGRES_DB: eopds
+      POSTGRES_USER: eopds
+      POSTGRES_PASSWORD: eopds123
+    volumes:
+      - pgdata-go:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eopds -d eopds"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  eopds-go:
+    build:
+      context: .
+      dockerfile: Dockerfile.go
+    container_name: eopds-go
+    depends_on:
+      db-go:
+        condition: service_healthy
+    environment:
+      # БД сконфигурирована, но мастер установки всё равно покажется,
+      # пока не создан root-администратор (users.is_root).
+      EOPDS_DB_TYPE: postgres
+      EOPDS_DB_HOST: db-go
+      EOPDS_DB_PORT: 5432
+      EOPDS_DB_NAME: eopds
+      EOPDS_DB_USER: eopds
+      EOPDS_DB_PASSWORD: eopds123
+      EOPDS_SERVER_ADDR: :8080
+    volumes:
+      - eopds-config:/config
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata-go:
+  eopds-config:

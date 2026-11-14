@@ -1,0 +1,51 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{T "app.name"}}</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/theme-{{.Theme}}.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/">
+        <img class="brand-logo" src="/static/img/logo.webp" alt="" width="112" height="40">
+        <span class="brand-text">
+          <span class="brand-name">{{T "app.name"}}</span>
+          <span class="brand-sub">{{T "app.tagline"}}</span>
+        </span>
+      </a>
+      <span class="header-spacer"></span>
+      <form method="get" class="lang-picker" title="{{T "lang.label"}}">
+        <svg class="globe" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+        <select name="lang" onchange="this.form.submit()" aria-label="{{T "lang.label"}}">
+          {{range .Langs}}
+          <option value="{{.}}" {{if eq . $.Lang}}selected{{end}}>{{langCode .}}</option>
+          {{end}}
+        </select>
+      </form>
+      <nav class="theme-switch">
+        <a href="?theme=dark"  class="{{if eq .Theme "dark"}}active{{end}}">{{T "theme.dark"}}</a>
+        <a href="?theme=light" class="{{if eq .Theme "light"}}active{{end}}">{{T "theme.light"}}</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    {{template "content" .}}
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>{{T "app.name"}} · v{{.Version}}</span>
+      <span>{{T "footer.quote"}}</span>
+    </div>
+  </footer>
+</body>
+</html>{{end}}

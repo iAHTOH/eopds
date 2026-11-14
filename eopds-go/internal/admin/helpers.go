@@ -3,9 +3,11 @@ package admin
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
 	"github.com/iAHTOH/eopds/eopds-go/internal/version"
@@ -37,6 +39,69 @@ func defaultSQLitePath(cfg config.Config) string {
 		return cfg.DBPath
 	}
 	return filepath.Join(cfg.ConfigDir, "eopds.db")
+}
+
+// resolveTheme определяет активную тему: ?theme=<name>, cookie или "dark".
+func resolveTheme(r *http.Request) string {
+	if t := r.URL.Query().Get("theme"); isKnownTheme(t) {
+		return t
+	}
+	if c, err := r.Cookie("theme"); err == nil && isKnownTheme(c.Value) {
+		return c.Value
+	}
+	return "dark"
+}
+
+// resolveLang определяет язык: ?lang=, cookie, Accept-Language, иначе "en".
+func resolveLang(r *http.Request) string {
+	if l := r.URL.Query().Get("lang"); l != "" {
+		return l
+	}
+	if c, err := r.Cookie("lang"); err == nil && c.Value != "" {
+		return c.Value
+	}
+	// Accept-Language: берём первый тег с точностью до "xx".
+	if al := r.Header.Get("Accept-Language"); al != "" {
+		first := strings.SplitN(al, ",", 2)[0]
+		first = strings.TrimSpace(strings.SplitN(first, ";", 2)[0])
+		if i := strings.IndexAny(first, "-_"); i > 0 {
+			first = first[:i]
+		}
+		if first != "" {
+			return first
+		}
+	}
+	return "en"
+}
+
+// langName — человекочитаемое название языка для переключателя.
+func langName(code string) string {
+	switch code {
+	case "ru":
+		return "Русский"
+	case "en":
+		return "English"
+	default:
+		return code
+	}
+}
+
+// langCode — двухбуквенный код языка в верхнем регистре (RU, EN).
+func langCode(code string) string {
+	if i := strings.IndexAny(code, "-_"); i > 0 {
+		code = code[:i]
+	}
+	return strings.ToUpper(code)
+}
+
+// isKnownTheme проверяет, что тема существует (theme-<name>.css).
+func isKnownTheme(name string) bool {
+	switch name {
+	case "dark", "light":
+		return true
+	default:
+		return false
+	}
 }
 
 // loggerAdapter приводит *slog.Logger к интерфейсу migrate.Logger.

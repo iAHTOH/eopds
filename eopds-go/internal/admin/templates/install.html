@@ -1,86 +1,70 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{.AppName}} — установка</title>
-  <link rel="stylesheet" href="/static/admin.css">
-</head>
-<body class="install-body">
-  <main class="card">
-    <header class="card-head">
-      <h1>{{.AppName}}</h1>
-      <p class="muted">Первичная установка · v{{.Version}}</p>
-    </header>
+{{define "content"}}
+<div class="card card-narrow">
+  <header class="card-head">
+    <h1>{{T "install.title"}}</h1>
+    <p class="muted">{{T "install.subtitle"}}</p>
+  </header>
 
-    {{if .Error}}
-    <div class="alert" role="alert">{{.Error}}</div>
-    {{end}}
+  {{if .Error}}<div class="alert" role="alert">{{.Error}}</div>{{end}}
 
-    <form method="post" action="/install" autocomplete="off">
-      <fieldset>
-        <legend>База данных</legend>
+  <form method="post" action="/install" autocomplete="off">
+    <fieldset>
+      <legend>{{T "install.db.legend"}}</legend>
 
-        <label class="row">
-          <span>Тип БД</span>
-          <select name="db_type" id="db_type" onchange="toggleDB()">
-            <option value="postgres" {{if eq .DBType "postgres"}}selected{{end}}>PostgreSQL</option>
-            <option value="sqlite" {{if eq .DBType "sqlite"}}selected{{end}}>SQLite (файл)</option>
-          </select>
-        </label>
+      <div class="db-hint">
+        <p class="db-hint-title">{{T "db.hint_title"}}</p>
+        <p><strong>PostgreSQL.</strong> {{T "db.hint_pg"}}</p>
+        <p><strong>SQLite.</strong> {{T "db.hint_sqlite"}}</p>
+      </div>
 
-        <div id="pg-fields">
-          <label class="row"><span>Хост</span>
-            <input name="db_host" value="{{.DBHost}}" placeholder="localhost">
-          </label>
-          <label class="row"><span>Порт</span>
-            <input name="db_port" value="{{.DBPort}}" inputmode="numeric" placeholder="5432">
-          </label>
-          <label class="row"><span>База</span>
-            <input name="db_name" value="{{.DBName}}" placeholder="eopds">
-          </label>
-          <label class="row"><span>Пользователь</span>
-            <input name="db_user" value="{{.DBUser}}" placeholder="eopds">
-          </label>
-          <label class="row"><span>Пароль БД</span>
-            <input name="db_password" type="password" autocomplete="new-password">
-          </label>
-        </div>
+      <label class="row"><span>{{T "install.db.type"}}</span>
+        <select name="db_type" id="db_type" onchange="toggleDB()">
+          <option value="postgres" {{if eq .DBType "postgres"}}selected{{end}}>{{T "db.opt_postgres"}}</option>
+          <option value="sqlite" {{if eq .DBType "sqlite"}}selected{{end}}>{{T "db.opt_sqlite"}}</option>
+        </select>
+      </label>
 
-        <div id="sqlite-fields" style="display:none">
-          <label class="row"><span>Путь к файлу</span>
-            <input name="db_path" value="{{.DBPath}}" placeholder="/config/eopds.db">
-          </label>
-        </div>
-      </fieldset>
+      <div id="pg-fields">
+        <label class="row"><span>{{T "install.db.host"}}</span>
+          <input name="db_host" value="{{.DBHost}}" placeholder="localhost"></label>
+        <label class="row"><span>{{T "install.db.port"}}</span>
+          <input name="db_port" value="{{.DBPort}}" inputmode="numeric" placeholder="5432"></label>
+        <label class="row"><span>{{T "install.db.name"}}</span>
+          <input name="db_name" value="{{.DBName}}" placeholder="eopds"></label>
+        <label class="row"><span>{{T "install.db.user"}}</span>
+          <input name="db_user" value="{{.DBUser}}" placeholder="eopds"></label>
+        <label class="row"><span>{{T "install.db.password"}}</span>
+          <input name="db_password" type="password" autocomplete="new-password"></label>
+      </div>
 
-      <fieldset>
-        <legend>Администратор</legend>
-        <label class="row"><span>Логин</span>
-          <input name="username" value="{{.Username}}" required minlength="3" placeholder="admin">
-        </label>
-        <label class="row"><span>Email (необязательно)</span>
-          <input name="email" type="email" value="{{.Email}}" placeholder="admin@example.com">
-        </label>
-        <label class="row"><span>Пароль</span>
-          <input name="password" type="password" required minlength="8" autocomplete="new-password">
-        </label>
-        <label class="row"><span>Повтор пароля</span>
-          <input name="password2" type="password" required minlength="8" autocomplete="new-password">
-        </label>
-      </fieldset>
+      <div id="sqlite-fields" style="display:none">
+        <label class="row"><span>{{T "install.db.path"}}</span>
+          <input name="db_path" value="{{.DBPath}}" placeholder="/config/eopds.db"></label>
+      </div>
+    </fieldset>
 
-      <button type="submit" class="btn-primary">Установить</button>
-    </form>
-  </main>
+    <fieldset>
+      <legend>{{T "install.admin.legend"}}</legend>
+      <label class="row"><span>{{T "install.admin.username"}}</span>
+        <input name="username" value="{{.Username}}" required minlength="3" placeholder="admin"></label>
+      <label class="row"><span>{{T "install.admin.email"}}</span>
+        <input name="email" type="email" value="{{.Email}}" placeholder="admin@example.com"></label>
+      <label class="row"><span>{{T "install.admin.password"}}</span>
+        <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label class="row"><span>{{T "install.admin.password2"}}</span>
+        <input name="password2" type="password" required minlength="8" autocomplete="new-password"></label>
+    </fieldset>
 
-  <script>
-    function toggleDB() {
-      var t = document.getElementById('db_type').value;
-      document.getElementById('pg-fields').style.display = (t === 'postgres') ? '' : 'none';
-      document.getElementById('sqlite-fields').style.display = (t === 'sqlite') ? '' : 'none';
-    }
-    toggleDB();
-  </script>
-</body>
-</html>
+    <button type="submit" class="btn-primary">{{T "install.submit"}}</button>
+  </form>
+</div>
+
+<script>
+  function toggleDB() {
+    var t = document.getElementById('db_type').value;
+    document.getElementById('pg-fields').style.display = (t === 'postgres') ? '' : 'none';
+    document.getElementById('sqlite-fields').style.display = (t === 'sqlite') ? '' : 'none';
+  }
+  toggleDB();
+</script>
+{{end}}

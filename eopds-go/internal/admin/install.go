@@ -14,9 +14,7 @@ import (
 
 // installData — данные формы установки.
 type installData struct {
-	Version string
-	AppName string
-	Error   string
+	Error string
 
 	// Поля формы.
 	DBType     string
@@ -31,6 +29,23 @@ type installData struct {
 	Email    string
 }
 
+// installView собирает данные для шаблона установки.
+func (s *Server) installView(r *http.Request, d installData) map[string]any {
+	data := s.baseData(r)
+	data["Title"] = "Установка"
+	data["Error"] = d.Error
+	data["DBType"] = d.DBType
+	data["DBHost"] = d.DBHost
+	data["DBPort"] = d.DBPort
+	data["DBName"] = d.DBName
+	data["DBUser"] = d.DBUser
+	data["DBPassword"] = d.DBPassword
+	data["DBPath"] = d.DBPath
+	data["Username"] = d.Username
+	data["Email"] = d.Email
+	return data
+}
+
 // handleInstallForm показывает мастер установки.
 func (s *Server) handleInstallForm(w http.ResponseWriter, r *http.Request) {
 	if s.isInstalled(r.Context()) {
@@ -38,16 +53,14 @@ func (s *Server) handleInstallForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := installData{
-		Version: appVersion(),
-		AppName: "EOPDS",
-		DBType:  string(s.cfg.DBType),
-		DBHost:  s.cfg.DBHost,
-		DBPort:  itoa(s.cfg.DBPort),
-		DBName:  s.cfg.DBName,
-		DBUser:  s.cfg.DBUser,
-		DBPath:  defaultSQLitePath(s.cfg),
+		DBType: string(s.cfg.DBType),
+		DBHost: s.cfg.DBHost,
+		DBPort: itoa(s.cfg.DBPort),
+		DBName: s.cfg.DBName,
+		DBUser: s.cfg.DBUser,
+		DBPath: defaultSQLitePath(s.cfg),
 	}
-	s.render(w, "install.html", d)
+	s.render(w, r, "install", s.installView(r, d))
 }
 
 // handleInstallSubmit обрабатывает отправку мастера установки.
@@ -62,8 +75,6 @@ func (s *Server) handleInstallSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := installData{
-		Version:    appVersion(),
-		AppName:    "EOPDS",
 		DBType:     strings.TrimSpace(r.PostFormValue("db_type")),
 		DBHost:     strings.TrimSpace(r.PostFormValue("db_host")),
 		DBPort:     strings.TrimSpace(r.PostFormValue("db_port")),
@@ -79,11 +90,12 @@ func (s *Server) handleInstallSubmit(w http.ResponseWriter, r *http.Request) {
 
 	fail := func(msg string) {
 		d.Error = msg
-		s.render(w, "install.html", d)
+		s.render(w, r, "install", s.installView(r, d))
 	}
 
-	if msg := validateInstall(password, password2, d.Username); msg != "" {
-		fail(msg)
+	tr := s.i18n.Translator(resolveLang(r))
+	if k := validateInstall(password, password2, d.Username); k != "" {
+		fail(tr(k))
 		return
 	}
 
@@ -103,18 +115,18 @@ func (s *Server) handleInstallSubmit(w http.ResponseWriter, r *http.Request) {
 	st, err := store.Open(ctx, dbCfg, loggerAdapter{s.log})
 	if err != nil {
 		s.log.Error("install: подключение к БД", "err", err)
-		fail("Не удалось подключиться к базе данных. Проверьте параметры и доступность сервера БД.")
+		fail(tr("install.err.db_connect"))
 		return
 	}
 
 	if installed, err := st.IsInstalled(ctx); err != nil {
 		_ = st.Close()
 		s.log.Error("install: проверка установки", "err", err)
-		fail("Ошибка чтения базы данных. Схема несовместима или повреждена.")
+		fail(tr("install.err.db_read"))
 		return
 	} else if installed {
 		_ = st.Close()
-		fail("Система уже установлена (root-администратор существует).")
+		fail(tr("install.err.already"))
 		return
 	}
 
@@ -122,18 +134,18 @@ func (s *Server) handleInstallSubmit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		_ = st.Close()
 		s.log.Error("install: хэш пароля", "err", err)
-		fail("Не удалось обработать пароль. Попробуйте ещё раз.")
+		fail(tr("install.err.hash"))
 		return
 	}
 
 	if _, err := st.CreateRootAdmin(ctx, d.Username, hash, d.Email); err != nil {
 		_ = st.Close()
 		if errors.Is(err, store.ErrRootExists) {
-			fail("Система уже установлена (root-администратор существует).")
+			fail(tr("install.err.already"))
 			return
 		}
 		s.log.Error("install: создание админа", "err", err)
-		fail("Не удалось создать администратора.")
+		fail(tr("install.err.create"))
 		return
 	}
 
@@ -157,16 +169,16 @@ func (s *Server) handleInstallSubmit(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// validateInstall проверяет поля формы; возвращает текст ошибки или "".
+// validateInstall проверяет поля формы; возвращает ключ ошибки или "".
 func validateInstall(password, password2, username string) string {
 	if len(username) < 3 {
-		return "Логин администратора должен содержать не менее 3 символов."
+		return "install.err.username"
 	}
 	if len(password) < 8 {
-		return "Пароль должен содержать не менее 8 символов."
+		return "install.err.password"
 	}
 	if password != password2 {
-		return "Пароли не совпадают."
+		return "install.err.password_mismatch"
 	}
 	return ""
 }

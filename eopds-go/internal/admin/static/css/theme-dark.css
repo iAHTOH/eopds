@@ -1,0 +1,24 @@
+/* Тёмная тема EOPDS — в духе старой главной страницы. */
+:root {
+  --font: "Helvetica Neue", Helvetica, Roboto, Arial, sans-serif;
+
+  --bg: #0d0503;
+  --header-bg: #120805;
+  --card: #191b1c;
+  --input-bg: #191b1c;
+
+  --text: #bda789;
+  --muted: #8a7a63;
+  --brand: #f15a23;
+
+  --border: #3a2417;
+  --accent: #f15a23;
+  --accent-hover: #df460e;
+  --btn-text: #191b1c;
+  --focus-ring: rgba(241, 90, 35, .30);
+
+  --hint-bg: #1d1410;
+  --alert-bg: #2a1410;
+  --alert-border: #7a2d16;
+  --alert-text: #ffb59a;
+}
