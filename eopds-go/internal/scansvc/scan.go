@@ -7,9 +7,9 @@ package scansvc
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
-	"bytes"
 	"fmt"
 	"io"
 	"sync"
@@ -123,7 +123,7 @@ func handleRecord(ctx context.Context, st store.Store, rec meta.Record, res *Res
 			seriesTitle = rec.Series.Title
 			seriesIndex = rec.Series.Index
 		}
-		_, err := st.ImportBook(ctx, store.IngestBook{
+		imported, err := st.ImportBook(ctx, store.IngestBook{
 			CatalogType: rec.CatalogType,
 			RelPath:     rec.RelPath,
 			BookPath:    rec.BookPath,
@@ -144,6 +144,11 @@ func handleRecord(ctx context.Context, st store.Store, rec meta.Record, res *Res
 			res.ImportErrors++
 		} else {
 			res.BooksParsed++
+			if imported.Created {
+				res.BooksCreated++
+			} else {
+				res.BooksUpdated++
+			}
 		}
 		mu.Unlock()
 	case meta.KindStats:

@@ -205,12 +205,12 @@ func (s *DBStore) selectOrInsert(ctx context.Context, tx *sql.Tx, insQ, selQ str
 }
 
 // link выполняет вставку связи, игнорируя дубликаты (PK).
+// Использует ON CONFLICT DO NOTHING: в PostgreSQL нельзя «проглотить» ошибку
+// внутри транзакции (она станет aborted), поэтому конфликт разрешает сам SQL.
 func (s *DBStore) link(ctx context.Context, tx *sql.Tx, q string, args ...any) error {
 	q = s.bind(q, len(args))
+	q += " ON CONFLICT DO NOTHING"
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
-		if isUniqueViolation(err) || strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-			return nil // связь уже есть — это нормально
-		}
 		return fmt.Errorf("store: link: %w", err)
 	}
 	return nil

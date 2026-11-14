@@ -57,10 +57,13 @@ func (s *Server) handleScanRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("сканирование завершено",
-		"found", res.BooksFound, "parsed", res.BooksParsed, "errors", res.ImportErrors)
+		"found", res.BooksFound, "created", res.BooksCreated, "updated", res.BooksUpdated,
+		"errors", res.ImportErrors)
 
 	s.renderScanPage(w, r, "done", map[string]any{
 		"Found":   res.BooksFound,
+		"Created": res.BooksCreated,
+		"Updated": res.BooksUpdated,
 		"Parsed":  res.BooksParsed,
 		"Errors":  res.ImportErrors,
 		"Roots":   res.Roots,

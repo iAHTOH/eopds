@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
-	)
+)
 
 // nopLogger — пустой логгер для миграций в тестах.
 type nopLogger struct{}
