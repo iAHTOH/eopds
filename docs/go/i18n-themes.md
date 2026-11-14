@@ -71,7 +71,8 @@
 ## Аутентификация и сессии
 
 - Публичное: `/` (главная-заглушка портала), `/login`, `/install`, `/static`,
-  `/api/health`, `/api/version`.
+  `/api/health`, `/api/version`. На главной есть кнопка «Войти» (или «В админ-панель»,
+  если уже выполнен вход).
 - Защищено (`requireAuth`): `/dashboard`, `/library`, `/scan`, `/settings`.
   Без входа — редирект на `/login?next=<путь>`.
 - Вход: `GET/POST /login`. Пароль проверяется `auth.VerifyPassword` (PBKDF2),
@@ -80,6 +81,14 @@
 - Выход: `POST /logout` — удаляет сессию и cookie, ведёт на `/`.
 - Сессии в БД: `store.CreateSession/GetSessionUser/DeleteSession/PurgeExpiredSessions`.
 - Публичную главную `/` планируется оформить в стиле старого `/web/`.
+
+### Роли и настройки
+
+- Роли: `admin`, `moderator`, `reader`; root-админ (`is_root`) обладает всеми правами.
+- `/settings` защищён ролью: `requireAuth` + `requireRole("admin", …)` — доступ
+  только администратору/root, иначе `403`.
+- Содержимое `/settings` (каркас): таблица **Пользователи** — `store.ListUsers()`:
+  логин, email, роль (badge), статус (активен/отключён), дата создания.
 
 Счётчики дашборда берутся из БД: `store.Stats()` (COUNT по `books`, `authors`,
 `series`, `users`). При ошибке показываются нули.

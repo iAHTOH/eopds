@@ -4,6 +4,35 @@
     <h1>{{T "nav.settings"}}</h1>
     <p class="muted">{{T "settings.subtitle"}}</p>
   </header>
+
+  <h2 class="section-title">{{T "settings.users"}}</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>{{T "users.username"}}</th>
+        <th>{{T "users.email"}}</th>
+        <th>{{T "users.role"}}</th>
+        <th>{{T "users.status"}}</th>
+        <th>{{T "users.created"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Users}}
+      <tr>
+        <td>{{.ID}}</td>
+        <td>{{.Username}}{{if .IsRoot}} <span class="badge badge-root">root</span>{{end}}</td>
+        <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
+        <td><span class="badge badge-{{.Role}}">{{roleName .Role}}</span></td>
+        <td>{{if .IsActive}}<span class="dot dot-on"></span>{{T "users.active"}}{{else}}<span class="dot dot-off"></span>{{T "users.inactive"}}{{end}}</td>
+        <td class="muted">{{.CreatedAt}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="6" class="muted">{{T "users.empty"}}</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+
   <p class="muted">{{T "settings.stub"}}</p>
 </div>
 {{end}}

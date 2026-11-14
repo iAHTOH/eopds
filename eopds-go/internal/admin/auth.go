@@ -84,6 +84,18 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireRole — middleware: требует определённую роль (должен идти после requireAuth).
+func (s *Server) requireRole(role string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u := currentUser(r)
+		if u == nil || (!u.IsRoot && u.Role != role) {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	}
+}
+
 // handleLoginForm показывает форму входа.
 func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 	if !s.isInstalled(r.Context()) {
@@ -95,7 +107,7 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	s.renderLogin(w, r, "", r.URL.Query().Get("next"))
+	s.renderLogin(w, r, "", "")
 }
 
 // handleLoginSubmit проверяет логин/пароль и создаёт сессию.

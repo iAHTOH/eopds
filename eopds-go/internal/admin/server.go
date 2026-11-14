@@ -55,6 +55,7 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 			"T":        func(k string) string { return k },
 			"langName": langName,
 			"langCode": langCode,
+			"roleName": roleName,
 		})
 		tmpl, err := base.ParseFS(templatesFS, "templates/layout.html", file)
 		if err != nil {
@@ -91,7 +92,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
 	mux.HandleFunc("GET /library", s.requireAuth(s.handleSection("library")))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
-	mux.HandleFunc("GET /settings", s.requireAuth(s.handleSection("settings")))
+	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
@@ -147,7 +148,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, dat
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode})
+	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := cloned.ExecuteTemplate(w, "layout", data); err != nil {
 		s.log.Error("render", "page", page, "err", err)
@@ -182,6 +183,9 @@ func (s *Server) handlePortal(w http.ResponseWriter, r *http.Request) {
 	if !s.isInstalled(r.Context()) {
 		http.Redirect(w, r, "/install", http.StatusSeeOther)
 		return
+	}
+	if _, r2 := s.authenticate(w, r); r2 != nil {
+		r = r2
 	}
 	data := s.baseData(r)
 	data["Nav"] = ""
@@ -256,6 +260,15 @@ func (s *Server) handleSection(nav string) http.HandlerFunc {
 		}
 		data := s.baseData(r)
 		data["Nav"] = nav
+		if nav == "settings" {
+			if st := s.getStore(); st != nil {
+				if users, err := st.ListUsers(r.Context()); err != nil {
+					s.log.Warn("settings: list users", "err", err)
+				} else {
+					data["Users"] = users
+				}
+			}
+		}
 		s.render(w, r, nav, data)
 	}
 }

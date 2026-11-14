@@ -94,6 +94,20 @@ func langCode(code string) string {
 	return strings.ToUpper(code)
 }
 
+// roleName — локализованное имя роли (ключ T).
+func roleName(role string) string {
+	switch role {
+	case "admin":
+		return "Admin"
+	case "moderator":
+		return "Moderator"
+	case "reader":
+		return "Reader"
+	default:
+		return role
+	}
+}
+
 // isKnownTheme проверяет, что тема существует (theme-<name>.css).
 func isKnownTheme(name string) bool {
 	switch name {

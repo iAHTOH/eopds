@@ -44,6 +44,9 @@ type Store interface {
 	// GetUserByUsername ищет пользователя по логину.
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 
+	// ListUsers возвращает всех пользователей.
+	ListUsers(ctx context.Context) ([]User, error)
+
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error
 	// GetSetting читает настройку; ErrNotFound, если нет.

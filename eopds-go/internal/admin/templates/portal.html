@@ -6,7 +6,11 @@
   </header>
   <p class="muted">{{T "portal.stub"}}</p>
   <div class="portal-actions">
+    {{if .User}}
     <a class="btn-primary" href="/dashboard">{{T "portal.to_admin"}}</a>
+    {{else}}
+    <a class="btn-primary" href="/login?next=%2Fdashboard">{{T "login.submit"}}</a>
+    {{end}}
   </div>
 </div>
 {{end}}

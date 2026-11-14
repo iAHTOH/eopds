@@ -71,7 +71,16 @@
     "portal.title": "Easy OPDS",
     "portal.subtitle": "Home library portal",
     "portal.stub": "Public catalog will be here (old /web/ style).",
-    "portal.to_admin": "Go to admin panel"
+    "portal.to_admin": "Go to admin panel",
+    "settings.users": "Users",
+    "users.username": "Login",
+    "users.email": "Email",
+    "users.role": "Role",
+    "users.status": "Status",
+    "users.created": "Created",
+    "users.active": "active",
+    "users.inactive": "inactive",
+    "users.empty": "No users."
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -145,6 +154,15 @@
     "portal.title": "Easy OPDS",
     "portal.subtitle": "Портал домашней библиотеки",
     "portal.stub": "Здесь будет публичный каталог (стиль старого /web/).",
-    "portal.to_admin": "В админ-панель"
+    "portal.to_admin": "В админ-панель",
+    "settings.users": "Пользователи",
+    "users.username": "Логин",
+    "users.email": "Email",
+    "users.role": "Роль",
+    "users.status": "Статус",
+    "users.created": "Создан",
+    "users.active": "активен",
+    "users.inactive": "отключён",
+    "users.empty": "Пользователей нет."
   }
 }
