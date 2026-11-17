@@ -152,22 +152,22 @@ func (s *DBStore) upsertBook(ctx context.Context, tx *sql.Tx, catalogID int64, b
 	case err == nil:
 		updQ := fmt.Sprintf(
 			"UPDATE books SET title = %s, search_title = %s, format = %s, size_bytes = %s, "+
-				"annotation = %s, docdate = %s, lang = %s, updated_at = CURRENT_TIMESTAMP "+
+				"annotation = %s, docdate = %s, lang = %s, lang_code = %s, updated_at = CURRENT_TIMESTAMP "+
 				"WHERE id = %s",
-			s.ph(1), s.ph(2), s.ph(3), s.ph(4), s.ph(5), s.ph(6), s.ph(7), s.ph(8))
+			s.ph(1), s.ph(2), s.ph(3), s.ph(4), s.ph(5), s.ph(6), s.ph(7), s.ph(8), s.ph(9))
 		if _, err := tx.ExecContext(ctx, updQ, title, searchTitle, b.Format, b.Size,
-			b.Annotation, b.DocDate, b.Lang, existingID); err != nil {
+			b.Annotation, b.DocDate, b.Lang, langCodeOf(searchTitle), existingID); err != nil {
 			return 0, false, fmt.Errorf("store: update book: %w", err)
 		}
 		return existingID, false, nil
 	case errors.Is(err, sql.ErrNoRows):
 		insQ := fmt.Sprintf(
 			"INSERT INTO books (catalog_id, filename, path, format, size_bytes, title, search_title, "+
-				"annotation, docdate, lang) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
-			s.ph(1), s.ph(2), s.ph(3), s.ph(4), s.ph(5), s.ph(6), s.ph(7), s.ph(8), s.ph(9), s.ph(10))
+				"annotation, docdate, lang, lang_code) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+			s.ph(1), s.ph(2), s.ph(3), s.ph(4), s.ph(5), s.ph(6), s.ph(7), s.ph(8), s.ph(9), s.ph(10), s.ph(11))
 		var id int64
 		if err := tx.QueryRowContext(ctx, insQ, catalogID, b.Filename, path, b.Format, b.Size,
-			title, searchTitle, b.Annotation, b.DocDate, b.Lang).Scan(&id); err != nil {
+			title, searchTitle, b.Annotation, b.DocDate, b.Lang, langCodeOf(searchTitle)).Scan(&id); err != nil {
 			return 0, false, fmt.Errorf("store: insert book: %w", err)
 		}
 		return id, true, nil
@@ -231,4 +231,25 @@ func (s *DBStore) bind(query string, n int) string {
 	}
 	b.WriteString(parts[n])
 	return b.String()
+}
+
+// langCodeOf вычисляет код набора первого символа заголовка:
+// 1 — кириллица, 2 — латиница, 3 — цифра, 9 — прочее (как в старом web-интерфейсе).
+func langCodeOf(title string) int {
+	for _, r := range title {
+		switch {
+		case r == ' ' || r == '\t' || r == '"' || r == '\'' || r == '«' || r == '“':
+			continue // пропускаем обёртки/пробелы
+		case r >= 'а' && r <= 'я', r >= 'А' && r <= 'Я', r == 'ё', r == 'Ё',
+			r >= '\u0400' && r <= '\u04FF':
+			return 1
+		case (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'):
+			return 2
+		case r >= '0' && r <= '9':
+			return 3
+		default:
+			return 9
+		}
+	}
+	return 9
 }

@@ -27,6 +27,7 @@
 - [go/install.md](go/install.md) — мастер первичной установки (root-админ, БД).
 - [go/i18n-themes.md](go/i18n-themes.md) — темы оформления и локализация (ru/en).
 - [go/api.md](go/api.md) — HTTP API Go-сервиса (версия, здоровье, обновления, форум).
+- [go/library.md](go/library.md) — веб-библиотека Go (`/library/*`, алфавитный указатель, каркас страниц).
 - [translating.md](translating.md) — как сделать перевод (для пулл-реквестов).
 - [contributing.md](contributing.md) — как внести вклад в проект.
 
