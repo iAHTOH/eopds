@@ -1,0 +1,32 @@
+{{define "layout"}}{{template "legacy_layout" .}}{{end}}
+
+{{define "legacy_body"}}
+<div class="large-12 column lib-book">
+  <h3>{{.Book.Title}}</h3>
+  <table>
+    <tr>
+      <td width="120px" style="padding:0;">
+        <img src="/static/legacy/images/eopds_book.jpg" width="100px" alt="">
+      </td>
+      <td style="font-size:85%;padding:1rem;">
+        <b>{{T "lib.field_title"}}:</b> {{.Book.Title}} <span class="label">{{.Book.Format}}</span><br>
+        {{if .Book.Authors}}<b>{{T "lib.field_authors"}}:</b>
+          {{range $i, $a := .Book.Authors}}{{if $i}}, {{end}}{{$a}}{{end}}<br>{{end}}
+        {{if .Book.Genres}}<b>{{T "lib.field_genres"}}:</b>
+          {{range $i, $g := .Book.Genres}}{{if $i}}, {{end}}{{$g}}{{end}}<br>{{end}}
+        {{if .Book.Series}}<b>{{T "lib.field_series"}}:</b>
+          {{range $i, $s := .Book.Series}}{{if $i}}, {{end}}{{$s}}{{end}}<br>{{end}}
+        <b>{{T "lib.field_file"}}:</b> {{.Book.Path}}/{{.Book.Filename}}<br>
+        <b>{{T "lib.field_size"}}:</b> {{kb .Book.SizeBytes}} {{T "lib.kb"}}<br>
+        {{if .Book.DocDate}}<b>{{T "lib.field_date"}}:</b> {{.Book.DocDate}}<br>{{end}}
+        {{if .Book.Lang}}<b>{{T "lib.field_lang"}}:</b> {{.Book.Lang}}<br>{{end}}
+      </td>
+    </tr>
+  </table>
+  {{if .Book.Annotation}}
+  <div class="callout secondary" style="font-size:85%;">
+    <p style="white-space:pre-wrap;">{{.Book.Annotation}}</p>
+  </div>
+  {{end}}
+</div>
+{{end}}

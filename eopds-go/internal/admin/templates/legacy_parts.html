@@ -1,0 +1,84 @@
+{{define "legacy_layout"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{T "app.name"}}{{if .BreadcrumbTitle}} / {{.BreadcrumbTitle}}{{end}}</title>
+  <link rel="icon" href="/static/img/favicon.ico">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/theme-{{.Theme}}.css">
+  <link rel="stylesheet" href="/static/legacy/css/foundation-flex.min.css">
+  <link rel="stylesheet" href="/static/legacy/css/eopds.css">
+  <link rel="stylesheet" href="/static/legacy/foundation-icons/foundation-icons.css">
+  <link rel="stylesheet" href="/static/css/library.css">
+</head>
+<body>
+{{template "site_top" .}}
+<div class="row"><div class="large-12 column">
+  {{template "legacy_menu" .}}
+</div></div>
+<div class="row"><div class="large-12 column">
+  {{template "legacy_breadcrumbs" .}}
+</div></div>
+<div class="row"><div class="large-12 column">
+  {{template "legacy_body" .}}
+</div></div>
+{{template "site_footer" .}}
+<script src="/static/legacy/js/jquery.js"></script>
+<script src="/static/legacy/js/foundation.js"></script>
+<script>$(document).foundation();</script>
+</body>
+</html>{{end}}
+
+{{define "legacy_menu"}}
+<div id="main_menu">
+  <ul class="dropdown menu eopdsmenu" style="font-size:100%;" data-dropdown-menu data-close-on-click-inside="false">
+    <li class="{{if eq .LibSection "books"}}active{{end}}"><a href="#">{{T "nav.books"}}</a>
+      <ul class="menu eopdsmenu">
+        {{range .LangMenu}}<li><a href="/library/books?lang={{.Code}}">{{T .Label}}</a></li>{{end}}
+      </ul>
+    </li>
+    <li class="{{if eq .LibSection "authors"}}active{{end}}"><a href="#">{{T "nav.authors"}}</a>
+      <ul class="menu eopdsmenu">
+        {{range .LangMenu}}<li><a href="/library/authors?lang={{.Code}}">{{T .Label}}</a></li>{{end}}
+      </ul>
+    </li>
+    <li class="{{if eq .LibSection "genres"}}active{{end}}"><a href="/library/genres">{{T "nav.genres"}}</a></li>
+    <li class="{{if eq .LibSection "series"}}active{{end}}"><a href="#">{{T "nav.series"}}</a>
+      <ul class="menu eopdsmenu">
+        {{range .LangMenu}}<li><a href="/library/series?lang={{.Code}}">{{T .Label}}</a></li>{{end}}
+      </ul>
+    </li>
+  </ul>
+</div>
+{{end}}
+
+{{define "legacy_breadcrumbs"}}
+<nav aria-label="{{T "crumbs.you_are_here"}}" role="navigation">
+  <ul class="breadcrumbs">
+    {{range .Breadcrumbs}}
+      <li>{{if .URL}}<a href="{{.URL}}">{{T .Label}}</a>{{else}}{{T .Label}}{{end}}</li>
+    {{end}}
+  </ul>
+</nav>
+{{end}}
+
+
+
+{{define "lib_pager"}}
+{{if gt .Pages 1}}
+<ul class="pagination" role="navigation" aria-label="pagination">
+  <li class="pagination-previous {{if not .HasPrev}}disabled{{end}}">
+    {{if .HasPrev}}<a href="{{.Prev}}">{{T "lib.prev_page"}}</a>{{else}}{{T "lib.prev_page"}}{{end}}
+  </li>
+  {{range .Links}}
+    {{if .Dot}}<li class="ellipsis" aria-hidden="true"></li>
+    {{else if .Cur}}<li class="current">{{.Num}}</li>
+    {{else}}<li><a href="{{.URL}}">{{.Num}}</a></li>{{end}}
+  {{end}}
+  <li class="pagination-next {{if not .HasNext}}disabled{{end}}">
+    {{if .HasNext}}<a href="{{.Next}}">{{T "lib.next_page"}}</a>{{else}}{{T "lib.next_page"}}{{end}}
+  </li>
+</ul>
+{{end}}
+{{end}}

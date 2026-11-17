@@ -1,0 +1,75 @@
+/* Библиотека EOPDS — современное оформление поверх легаси eopds.css */
+:root {
+  --lib-radius: 10px;
+}
+
+/* Указатель префиксов и списки сущностей */
+table.lib-index {
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1rem 0;
+}
+table.lib-index td {
+  padding: .55rem .9rem !important;
+  border-bottom: 1px solid rgba(241, 90, 35, .25);
+}
+table.lib-index tr:last-child td { border-bottom: 0; }
+table.lib-index tr:hover td { background: rgba(241, 90, 35, .08); }
+table.lib-index a { font-size: 1.05rem; font-weight: 600; }
+table.lib-index span { margin-left: .4rem; opacity: .75; }
+
+/* Карточка книги в списке */
+.lib-book {
+  border: 1px solid rgba(241, 90, 35, .25);
+  border-radius: var(--lib-radius);
+  margin-bottom: 1rem;
+  padding: .75rem 1rem;
+  background: rgba(255, 255, 255, .02);
+  transition: box-shadow .2s ease-out, transform .2s ease-out;
+}
+.lib-book:hover {
+  box-shadow: 0 0 10px 1px rgba(241, 90, 35, .45);
+  transform: translateY(-1px);
+}
+.lib-book-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .4rem;
+  font-size: 1.05rem;
+}
+.lib-book table { margin-bottom: 0 !important; }
+.lib-book img {
+  border-radius: var(--lib-radius);
+  border: 1px solid rgba(241, 90, 35, .3);
+}
+
+/* Пагинация */
+ul.pagination li a,
+ul.pagination li.current,
+ul.pagination li.disabled {
+  border-radius: var(--lib-radius) !important;
+}
+ul.pagination .current { background: #f15a23 !important; }
+
+/* Меню, кнопки, топбар */
+.top-bar,
+#main_menu .eopdsmenu,
+.button,
+.breadcrumbs li,
+.input-group-field,
+.input-group-button .button,
+table {
+  border-radius: var(--lib-radius) !important;
+}
+.dropdown.menu > li.is-dropdown-submenu-parent > a { border-radius: var(--lib-radius); }
+.is-dropdown-submenu {
+  border-radius: var(--lib-radius);
+  overflow: hidden;
+}
+.is-dropdown-submenu a { border-radius: 0; }
+.is-dropdown-submenu a:hover { background: rgba(241, 90, 35, .25) !important; }
+
+/* Хлебные крошки */
+.breadcrumbs { margin-top: .5rem; }
+.breadcrumbs li { color: inherit; }

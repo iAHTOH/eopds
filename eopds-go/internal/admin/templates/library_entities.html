@@ -1,0 +1,40 @@
+{{define "lib_entity_body"}}
+{{if .ShowList}}
+  {{if .Items}}
+    <table class="lib-index">
+      {{range .Items}}
+      <tr>
+        <td>
+          {{if eq $.LibSection "authors"}}
+            <a href="/library/books?author={{.ID}}">{{.Title}}</a>
+          {{else}}
+            <a href="/library/books?series={{.ID}}">{{.Title}}</a>
+          {{end}}
+          <span style="font-size:80%">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.books_n"}}</span>
+        </td>
+      </tr>
+      {{end}}
+    </table>
+    {{template "lib_pager" .Pagination}}
+  {{else}}
+    <p class="muted">{{T "lib.empty"}}</p>
+  {{end}}
+{{else}}
+  {{template "lib_entity_index" .}}
+{{end}}
+{{end}}
+
+{{define "lib_entity_index"}}
+<table class="lib-index">
+  {{range .PrefixRows}}
+  <tr>
+    <td>
+      <a href="{{.URL}}">{{.Key}}</a>
+      <span style="font-size:80%">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.items_n"}}</span>
+    </td>
+  </tr>
+  {{else}}
+  <tr><td><p class="muted">{{T "lib.empty"}}</p></td></tr>
+  {{end}}
+</table>
+{{end}}

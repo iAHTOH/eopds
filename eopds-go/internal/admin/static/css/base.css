@@ -258,3 +258,96 @@ input:focus, select:focus {
 
 .last-scan-line { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 6px 0; align-items: baseline; }
 .last-scan-line .muted { margin-right: 2px; }
+
+/* Библиотека */
+.lib-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.lib-tabs a { padding: 6px 12px; border-radius: 6px; text-decoration: none; border: 1px solid var(--border, #ccc); color: inherit; }
+.lib-tabs a.active { background: var(--accent, #2563eb); color: #fff; border-color: transparent; }
+.lib-search { display: flex; gap: 6px; margin-left: auto; }
+.lib-search input { padding: 6px 8px; border: 1px solid var(--border, #ccc); border-radius: 6px; min-width: 180px; }
+.lib-search button { padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.lib-crumb { margin: 12px 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.alphabet { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.alpha-item { display: flex; flex-direction: column; align-items: center; min-width: 44px; padding: 8px; border: 1px solid var(--border, #ccc); border-radius: 8px; text-decoration: none; color: inherit; }
+.alpha-item:hover { border-color: var(--accent, #2563eb); }
+.alpha-key { font-weight: 700; font-size: 1.1rem; text-transform: uppercase; }
+.alpha-count { font-size: .75rem; opacity: .7; }
+.book-list, .entity-list { list-style: none; padding: 0; margin: 8px 0; }
+.book-row, .entity-row { padding: 10px 0; border-bottom: 1px solid var(--border, #e5e5e5); }
+.entity-row { display: flex; justify-content: space-between; gap: 12px; }
+.book-main { display: flex; align-items: center; gap: 8px; }
+.book-title { text-decoration: none; color: inherit; }
+.book-title:hover { color: var(--accent, #2563eb); }
+.badge { font-size: .7rem; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: rgba(128,128,128,.18); }
+.book-card { width: 100%; border-collapse: collapse; margin: 8px 0; }
+.book-card th { text-align: left; width: 160px; vertical-align: top; padding: 6px 8px 6px 0; font-weight: 600; }
+.book-card td { padding: 6px 0; }
+.annotation p { white-space: pre-wrap; }
+.pager { display: flex; flex-wrap: wrap; gap: 4px; margin: 16px 0 4px; align-items: center; }
+.pager .pg { min-width: 34px; text-align: center; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border, #ccc); text-decoration: none; color: inherit; }
+.pager .pg.cur { background: var(--accent, #2563eb); color: #fff; border-color: transparent; }
+.pager .pg.disabled { opacity: .4; }
+.pager .pg.dot { border: none; }
+
+/* ---- Футер: сетка 2 строки (случайная книга / полка + статистика) ---- */
+.footer-grid {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.footer-grid h5 {
+  font-size: 12px;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.footer-random .random-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.random-cover img { border-radius: 8px; display: block; }
+.random-body { flex: 1 1 auto; min-width: 0; }
+.random-title { font-weight: 600; margin: 0 0 6px; }
+.random-title a { color: var(--text); }
+.random-title a:hover { color: var(--accent); }
+.random-annot { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 6px 0 0; }
+.random-body .small, .random-body .muted.small { font-size: 12px; margin: 2px 0; }
+
+.footer-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .footer-bottom { grid-template-columns: 1fr; }
+}
+.shelf-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.shelf-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 84px;
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  gap: 4px;
+}
+.shelf-item img { border-radius: 8px; border: 1px solid var(--border); }
+.shelf-item:hover { color: var(--accent); }
+.shelf-item span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.footer-stats p { margin: 0 0 8px; font-size: 13px; line-height: 1.6; }
+.footer-stats .label { font-size: 12px; }
+.footer-version { margin-top: 8px; }
+.footer-version a { color: var(--accent); }

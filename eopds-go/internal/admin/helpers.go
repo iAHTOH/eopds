@@ -131,3 +131,20 @@ func (a loggerAdapter) Debugf(module, format string, args ...any) {
 
 // LoggerAdapter экспортирует адаптер migrate.Logger для внешних пакетов.
 func LoggerAdapter(l *slog.Logger) loggerAdapter { return loggerAdapter{l: l} }
+
+// kb переводит байты в килобайты (округление вниз).
+func kb(n int64) int64 {
+	if n <= 0 {
+		return 0
+	}
+	return n / 1024
+}
+
+// trimText обрезает строку до max рун, добавляя многоточие.
+func trimText(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max]) + "…"
+}

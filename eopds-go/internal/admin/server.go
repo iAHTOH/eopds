@@ -46,13 +46,19 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle}
 	pageFiles := map[string]string{
-		"install":  "templates/install.html",
-		"home":     "templates/home.html",
-		"library":  "templates/library.html",
-		"scan":     "templates/scan.html",
-		"settings": "templates/settings.html",
-		"login":    "templates/login.html",
-		"portal":   "templates/portal.html",
+		"install":         "templates/install.html",
+		"home":            "templates/home.html",
+		"library":         "templates/library.html",
+		"library_books":   "templates/library_books.html",
+		"library_authors": "templates/library_authors.html",
+		"library_series":  "templates/library_series.html",
+		"library_genres":  "templates/library_genres.html",
+		"library_book":    "templates/library_book.html",
+		"scan":            "templates/scan.html",
+		"settings":        "templates/settings.html",
+		"login":           "templates/login.html",
+		"portal":          "templates/portal.html",
+		"library_home":    "templates/library_home.html",
 	}
 	for name, file := range pageFiles {
 		base := template.New("layout").Funcs(template.FuncMap{
@@ -60,12 +66,13 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 			"langName": langName,
 			"langCode": langCode,
 			"roleName": roleName,
+			"kb":       kb,
+			"trim":     trimText,
 		})
-		tmpl, err := base.ParseFS(templatesFS, "templates/layout.html", file)
-		if err != nil {
+		if _, err := base.ParseFS(templatesFS, "templates/layout.html", "templates/chrome.html", "templates/legacy_parts.html", "templates/library_entities.html", file); err != nil {
 			return nil, err
 		}
-		s.pages[name] = tmpl
+		s.pages[name] = base
 	}
 	return s, nil
 }
@@ -94,7 +101,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /login", s.handleLoginSubmit)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
-	mux.HandleFunc("GET /library", s.requireAuth(s.handleSection("library")))
+	mux.HandleFunc("GET /library", s.requireAuth(s.handleLibraryIndex))
+	mux.HandleFunc("GET /library/books", s.requireAuth(s.handleLibraryBooks))
+	mux.HandleFunc("GET /library/authors", s.requireAuth(s.handleLibraryAuthors))
+	mux.HandleFunc("GET /library/series", s.requireAuth(s.handleLibrarySeries))
+	mux.HandleFunc("GET /library/genres", s.requireAuth(s.handleLibraryGenres))
+	mux.HandleFunc("GET /library/book/{id}", s.requireAuth(s.handleLibraryBook))
+	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))
@@ -154,7 +167,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, dat
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName})
+	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName, "kb": kb, "trim": trimText})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := cloned.ExecuteTemplate(w, "layout", data); err != nil {
 		s.log.Error("render", "page", page, "err", err)
@@ -168,7 +181,7 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 	if u := currentUser(r); u != nil {
 		user = u
 	}
-	return map[string]any{
+	data := map[string]any{
 		"User":       user,
 		"Version":    version.String(),
 		"AppName":    "EOPDS",
@@ -178,6 +191,28 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 		"FooterText": "Жизнь должна быть наполнена книгами, которые наполнены жизнью.",
 		"Nav":        "",
 	}
+	// Данные футера/статистики (только если БД доступна).
+	if st := s.getStore(); st != nil {
+		if stats, err := st.Stats(r.Context()); err == nil {
+			data["StatsBooks"] = stats.Books
+			data["StatsAuthors"] = stats.Authors
+		}
+		if g, gt, err := st.ListGenres(r.Context(), 1, 0); err == nil {
+			_ = g
+			data["StatsGenres"] = gt
+		}
+		if se, stt, err := st.ListSeriesByPrefix(r.Context(), "", 1, 1); err == nil {
+			_ = se
+			data["StatsSeries"] = stt
+		}
+		if rb, err := st.RandomBook(r.Context()); err == nil {
+			data["RandomBook"] = rb
+		}
+		if shelf, err := st.RecentBooks(r.Context(), 3); err == nil {
+			data["ShelfBooks"] = shelf
+		}
+	}
+	return data
 }
 
 // handlePortal — публичная главная (заглушка; позже — стиль старого /web/).
@@ -193,9 +228,10 @@ func (s *Server) handlePortal(w http.ResponseWriter, r *http.Request) {
 	if _, r2 := s.authenticate(w, r); r2 != nil {
 		r = r2
 	}
-	data := s.baseData(r)
+	data := s.libData(r, "")
 	data["Nav"] = ""
-	s.render(w, r, "portal", data)
+	data["Breadcrumbs"] = []Crumb{{Label: "home.crumb"}}
+	s.render(w, r, "library_home", data)
 }
 
 // handleDashboard — главная админки со статистикой (требует входа).

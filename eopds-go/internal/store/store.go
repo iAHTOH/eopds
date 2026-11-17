@@ -57,6 +57,33 @@ type Store interface {
 
 	// Stats возвращает сводную статистику для дашборда.
 	Stats(ctx context.Context) (Stats, error)
+	// ListBooks возвращает страницу книг по фильтру (алфавит/автор/серия/жанр).
+	ListBooks(ctx context.Context, f BooksFilter, page, size int) (LibraryPage, error)
+	// SearchBooks ищет книги по подстроке названия, постранично.
+	SearchBooks(ctx context.Context, q string, page, size int) (LibraryPage, error)
+	// GetBook возвращает книгу со связями по id.
+	GetBook(ctx context.Context, id int64) (LibraryBook, error)
+	// BookAlphabet/AuthorAlphabet/SeriesAlphabet — алфавитные указатели.
+	BookAlphabet(ctx context.Context) ([]AlphabetItem, error)
+	AuthorAlphabet(ctx context.Context) ([]AlphabetItem, error)
+	SeriesAlphabet(ctx context.Context) ([]AlphabetItem, error)
+	// ListAuthors/ListSeries/ListGenres — постраничные списки сущностей.
+	ListAuthors(ctx context.Context, prefix string, page, size int) ([]NamedItem, int64, error)
+	ListSeries(ctx context.Context, prefix string, page, size int) ([]NamedItem, int64, error)
+	ListGenres(ctx context.Context, page, size int) ([]NamedItem, int64, error)
+	// EntityName — название автора/серии/жанра по id (kind: author|series|genre).
+	EntityName(ctx context.Context, kind string, id int64) (string, error)
+	RandomBook(ctx context.Context) (LibraryBook, error)
+	RecentBooks(ctx context.Context, limit int) ([]LibraryBook, error)
+	// PrefixIndex — префиксный алфавитный указатель (table,col,length,prefix,lang).
+	PrefixIndex(ctx context.Context, table, col string, length int, prefix string, lang int) ([]AlphabetItem, error)
+	// BookByPrefixIndex — указатель книг по префиксу.
+	BookByPrefixIndex(ctx context.Context, length int, prefix string, lang int) ([]AlphabetItem, error)
+	// ListBooksByPrefix — книги по префиксу с фильтром по языку.
+	ListBooksByPrefix(ctx context.Context, prefix string, lang, page, size int) (LibraryPage, error)
+	// ListAuthorsByPrefix / ListSeriesByPrefix — сущности по префиксу.
+	ListAuthorsByPrefix(ctx context.Context, prefix string, page, size int) ([]NamedItem, int64, error)
+	ListSeriesByPrefix(ctx context.Context, prefix string, page, size int) ([]NamedItem, int64, error)
 
 	// CreateSession создаёт сессию пользователя.
 	CreateSession(ctx context.Context, id string, userID int64, expiresAt time.Time) error

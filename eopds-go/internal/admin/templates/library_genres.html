@@ -1,0 +1,17 @@
+{{define "layout"}}{{template "legacy_layout" .}}{{end}}
+
+{{define "legacy_body"}}
+<table class="lib-index">
+  {{range .Items}}
+  <tr>
+    <td>
+      <a href="/library/books?genre={{.ID}}">{{.Title}}</a>
+      <span style="font-size:80%">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.books_n"}}</span>
+    </td>
+  </tr>
+  {{else}}
+  <tr><td><p class="muted">{{T "lib.empty"}}</p></td></tr>
+  {{end}}
+</table>
+{{template "lib_pager" .Pagination}}
+{{end}}
