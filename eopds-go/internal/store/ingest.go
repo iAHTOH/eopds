@@ -52,8 +52,9 @@ func (s *DBStore) ImportBook(ctx context.Context, b IngestBook) (IngestResult, e
 	}
 	searchTitle := strings.ToLower(title)
 
-	// Каталог книги (books.catalog_id NOT NULL): upsert по path.
-	catalogID, err := s.ensureCatalog(ctx, tx, path)
+	// Каталог книги: иерархия от корня до непосредственного контейнера
+	// (папка или zip). books.catalog_id = id контейнера.
+	catalogID, err := s.ensureCatalogTree(ctx, tx, path, b.CatalogType)
 	if err != nil {
 		return IngestResult{}, err
 	}
@@ -126,20 +127,66 @@ func (s *DBStore) ImportBook(ctx context.Context, b IngestBook) (IngestResult, e
 	return IngestResult{BookID: bookID, Created: created}, nil
 }
 
-// ensureCatalog возвращает id каталога по пути, создавая его при необходимости.
-// name = последний элемент пути (или путь целиком для корня).
-func (s *DBStore) ensureCatalog(ctx context.Context, tx *sql.Tx, path string) (int64, error) {
-	name := path
-	if i := strings.LastIndexAny(path, "/\\"); i >= 0 && i+1 < len(path) {
-		name = path[i+1:]
+// ensureCatalogTree строит иерархию каталогов для пути контейнера книги и
+// возвращает id непосредственного контейнера.
+//
+// Путь нормализуется (слэши, без "./"/".."). Каждый компонент пути — узел
+// catalogs с parent_id на предыдущий уровень, path = накопленный путь,
+// name = компонент. Тип (kind): leafKind применяется к ПОСЛЕДНЕМУ узлу
+// (1 = zip), остальные — 0 (папки). Пустой путь/"./" → корневой каталог.
+func (s *DBStore) ensureCatalogTree(ctx context.Context, tx *sql.Tx, path string, leafKind int) (int64, error) {
+	path = normalizeRelPath(path)
+	if path == "" || path == "." {
+		return s.selectOrInsert(ctx, tx,
+			"INSERT INTO catalogs (parent_id, name, path, kind) VALUES (NULL, %s, %s, 0) RETURNING id",
+			"SELECT id FROM catalogs WHERE path = %s",
+			".", ".", ".")
 	}
-	if name == "" {
-		name = path
+
+	parts := strings.Split(path, "/")
+	var parentID any // nil для корня
+	acc := ""
+	for i, part := range parts {
+		if acc == "" {
+			acc = part
+		} else {
+			acc = acc + "/" + part
+		}
+		kind := 0
+		if i == len(parts)-1 {
+			kind = leafKind
+		}
+		id, err := s.selectOrInsert(ctx, tx,
+			"INSERT INTO catalogs (parent_id, name, path, kind) VALUES (%s, %s, %s, %s) RETURNING id",
+			"SELECT id FROM catalogs WHERE path = %s",
+			acc, parentID, part, acc, int64(kind))
+		if err != nil {
+			return 0, fmt.Errorf("store: ensure catalog %q: %w", acc, err)
+		}
+		parentID = id
 	}
-	return s.selectOrInsert(ctx, tx,
-		"INSERT INTO catalogs (name, path, kind) VALUES (%s, %s, 0) RETURNING id",
-		"SELECT id FROM catalogs WHERE path = %s",
-		path, name, path)
+	return parentID.(int64), nil
+}
+
+// normalizeRelPath приводит путь к виду "a/b/c": прямые слэши, без ведущих/хвостовых
+// слэшей, без ".", без "..". Backslash трактуется как разделитель.
+func normalizeRelPath(p string) string {
+	p = strings.ReplaceAll(p, "\\", "/")
+	var out []string
+	for _, seg := range strings.Split(p, "/") {
+		seg = strings.TrimSpace(seg)
+		if seg == "" || seg == "." {
+			continue
+		}
+		if seg == ".." {
+			if len(out) > 0 {
+				out = out[:len(out)-1]
+			}
+			continue
+		}
+		out = append(out, seg)
+	}
+	return strings.Join(out, "/")
 }
 
 // upsertBook вставляет книгу или обновляет существующую по (path, filename).
@@ -252,4 +299,26 @@ func langCodeOf(title string) int {
 		}
 	}
 	return 9
+}
+
+// PruneCatalogs удаляет каталоги, у которых нет книг и нет дочерних каталогов
+// (папки, пропавшие с диска). Повторяется до стабилизации: удаление листьев
+// может опустошить и их родителей. Возвращает число удалённых узлов.
+func (s *DBStore) PruneCatalogs(ctx context.Context) (int64, error) {
+	var total int64
+	for {
+		// Удаляем листья: без книг и без детей.
+		q := s.bind("DELETE FROM catalogs WHERE id NOT IN (SELECT DISTINCT catalog_id FROM books) "+
+			"AND id NOT IN (SELECT DISTINCT parent_id FROM catalogs WHERE parent_id IS NOT NULL)", 0)
+		res, err := s.db.ExecContext(ctx, q)
+		if err != nil {
+			return total, fmt.Errorf("store: prune catalogs: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		total += n
+		if n == 0 {
+			break
+		}
+	}
+	return total, nil
 }

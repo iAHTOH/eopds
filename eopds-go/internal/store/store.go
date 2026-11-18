@@ -57,6 +57,8 @@ type Store interface {
 	// ClearLibrary полностью очищает каталог книг (книги, авторы, серии,
 	// жанры, каталоги + связи/производные). Пользователи и настройки — сохраняются.
 	ClearLibrary(ctx context.Context) (ClearResult, error)
+	// PruneCatalogs удаляет пустые каталоги (без книг и детей); возвращает число.
+	PruneCatalogs(ctx context.Context) (int64, error)
 
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error

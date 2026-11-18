@@ -106,6 +106,11 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 	_ = pw.Close()
 	wg.Wait()
 
+	// Убрать каталоги, пропавшие с диска (без книг и без детей).
+	if _, err := st.PruneCatalogs(ctx); err != nil {
+		opts.Logger.Warnf("scansvc", "prune catalogs: %v", err)
+	}
+
 	res.Elapsed = time.Since(res.StartedAt)
 	if importErr != nil {
 		return res, importErr
