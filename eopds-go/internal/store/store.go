@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // postgres driver "pgx"
@@ -47,8 +48,15 @@ type Store interface {
 	// ListUsers возвращает всех пользователей.
 	ListUsers(ctx context.Context) ([]User, error)
 
+	// SetUserPasswordHash обновляет хеш пароля пользователя по id.
+	SetUserPasswordHash(ctx context.Context, id int64, passwordHash string) error
+
 	// ImportBook вставляет/обновляет книгу со связями (idempotent).
 	ImportBook(ctx context.Context, b IngestBook) (IngestResult, error)
+
+	// ClearLibrary полностью очищает каталог книг (книги, авторы, серии,
+	// жанры, каталоги + связи/производные). Пользователи и настройки — сохраняются.
+	ClearLibrary(ctx context.Context) (ClearResult, error)
 
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error
@@ -63,6 +71,8 @@ type Store interface {
 	SearchBooks(ctx context.Context, q string, page, size int) (LibraryPage, error)
 	// GetBook возвращает книгу со связями по id.
 	GetBook(ctx context.Context, id int64) (LibraryBook, error)
+	// BookCover возвращает обложку книги (ленивое извлечение из файла, кэш).
+	BookCover(ctx context.Context, id int64) (Cover, error)
 	// BookAlphabet/AuthorAlphabet/SeriesAlphabet — алфавитные указатели.
 	BookAlphabet(ctx context.Context) ([]AlphabetItem, error)
 	AuthorAlphabet(ctx context.Context) ([]AlphabetItem, error)
@@ -124,8 +134,10 @@ type User struct {
 
 // DBStore — реализация Store поверх database/sql.
 type DBStore struct {
-	db   *sql.DB
-	kind config.DBType
+	db       *sql.DB
+	kind     config.DBType
+	libRoot  string // корень коллекции для чтения файлов книг (напр. /books)
+	cacheDir string // каталог кэша обложек (напр. /config/covers)
 }
 
 // openDB открывает database/sql для указанной конфигурации.
@@ -178,7 +190,12 @@ func Open(ctx context.Context, cfg config.Config, log migrate.Logger) (Store, er
 		return nil, err
 	}
 
-	return &DBStore{db: db, kind: cfg.DBType}, nil
+	return &DBStore{
+		db:       db,
+		kind:     cfg.DBType,
+		libRoot:  cfg.LibraryRoot(),
+		cacheDir: filepath.Join(cfg.ConfigDir, "covers"),
+	}, nil
 }
 
 // applyMigrations применяет миграции под блокировкой.

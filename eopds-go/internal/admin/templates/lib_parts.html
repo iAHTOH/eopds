@@ -1,0 +1,13 @@
+{{define "lib_pager"}}
+{{if gt .Pages 1}}
+<nav class="pager" role="navigation" aria-label="pagination">
+  {{if .HasPrev}}<a class="pg" href="{{.Prev}}">‹</a>{{else}}<span class="pg disabled">‹</span>{{end}}
+  {{range .Links}}
+    {{if .Dot}}<span class="pg dot">…</span>
+    {{else if .Cur}}<span class="pg cur">{{.Num}}</span>
+    {{else}}<a class="pg" href="{{.URL}}">{{.Num}}</a>{{end}}
+  {{end}}
+  {{if .HasNext}}<a class="pg" href="{{.Next}}">›</a>{{else}}<span class="pg disabled">›</span>{{end}}
+</nav>
+{{end}}
+{{end}}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/iAHTOH/eopds/eopds-go/internal/config"
 	"github.com/iAHTOH/eopds/eopds-go/internal/store"
 )
 
@@ -99,6 +100,45 @@ func (s *Server) handleSaveScanPaths(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "save failed", http.StatusInternalServerError)
 		return
 	}
+
+	// Дублируем в config.json — единый источник настроек для перезапуска.
+	s.mu.Lock()
+	s.cfg.ScanPaths = paths
+	cfgSnap := s.cfg
+	s.mu.Unlock()
+	if err := config.SaveConfigFile(cfgSnap.ConfigDir, cfgSnap); err != nil {
+		s.log.Warn("settings: не удалось сохранить config.json", "err", err)
+	}
+
 	s.log.Info("каталоги сканирования сохранены", "count", len(paths))
 	http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#scan", http.StatusSeeOther)
+}
+
+// handleClearLibrary полностью очищает каталог книг (кнопка в настройках).
+func (s *Server) handleClearLibrary(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	// Защита от случайной очистки: требуется подтверждение.
+	if r.PostFormValue("confirm") != "yes" {
+		http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#db", http.StatusSeeOther)
+		return
+	}
+	st := s.getStore()
+	if st == nil {
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+		return
+	}
+	res, err := st.ClearLibrary(r.Context())
+	if err != nil {
+		s.log.Error("settings: clear library", "err", err)
+		http.Error(w, "clear failed", http.StatusInternalServerError)
+		return
+	}
+	_ = st.SetSetting(r.Context(), scanLastKey, "", 0) // сброс итога последнего скана
+	s.log.Info("библиотека очищена",
+		"books", res.Books, "authors", res.Authors,
+		"series", res.Series, "genres", res.Genres, "catalogs", res.Catalogs)
+	http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#db", http.StatusSeeOther)
 }

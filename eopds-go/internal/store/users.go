@@ -162,3 +162,15 @@ func isUniqueViolation(err error) bool {
 		strings.Contains(msg, "duplicate key") ||
 		strings.Contains(msg, "constraint failed")
 }
+
+// SetUserPasswordHash обновляет хеш пароля пользователя по id.
+func (s *DBStore) SetUserPasswordHash(ctx context.Context, id int64, passwordHash string) error {
+	if passwordHash == "" {
+		return errors.New("store: empty password hash")
+	}
+	q := fmt.Sprintf("UPDATE users SET password_hash = %s WHERE id = %s", s.ph(1), s.ph(2))
+	if _, err := s.db.ExecContext(ctx, q, passwordHash, id); err != nil {
+		return fmt.Errorf("store: set password hash: %w", err)
+	}
+	return nil
+}

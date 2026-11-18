@@ -153,9 +153,14 @@ func (s *Server) handleInstallSubmit(w http.ResponseWriter, r *http.Request) {
 	_ = st.SetSetting(ctx, "installed_at", time.Now().UTC().Format(time.RFC3339), 0)
 	_ = st.SetSetting(ctx, "db_type", d.DBType, 0)
 
-	// Сохраняем конфигурацию БД в /config/db.json (если не задана через ENV).
-	if err := config.SaveDBFile(s.cfg.ConfigDir, dbCfg); err != nil {
-		s.log.Warn("install: не удалось сохранить db.json", "err", err)
+	// Сохраняем единый конфиг в /config/config.json: БД + root-админ.
+	dbCfg.Admin = config.AdminConfig{
+		Username:     d.Username,
+		Email:        d.Email,
+		PasswordHash: hash,
+	}
+	if err := config.SaveConfigFile(s.cfg.ConfigDir, dbCfg); err != nil {
+		s.log.Warn("install: не удалось сохранить config.json", "err", err)
 		// Не фатально: БД уже работает в памяти процесса.
 	}
 

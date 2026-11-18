@@ -14,6 +14,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -69,7 +70,7 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 			"kb":       kb,
 			"trim":     trimText,
 		})
-		if _, err := base.ParseFS(templatesFS, "templates/layout.html", "templates/chrome.html", "templates/legacy_parts.html", "templates/library_entities.html", file); err != nil {
+		if _, err := base.ParseFS(templatesFS, "templates/layout.html", "templates/chrome.html", "templates/lib_parts.html", "templates/library_entities.html", file); err != nil {
 			return nil, err
 		}
 		s.pages[name] = base
@@ -107,11 +108,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library/series", s.requireAuth(s.handleLibrarySeries))
 	mux.HandleFunc("GET /library/genres", s.requireAuth(s.handleLibraryGenres))
 	mux.HandleFunc("GET /library/book/{id}", s.requireAuth(s.handleLibraryBook))
+	mux.HandleFunc("GET /library/book/{id}/cover", s.requireAuth(s.handleBookCover))
 	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))
 	mux.HandleFunc("POST /settings/scan-dirs", s.requireAuth(s.requireRole("admin", s.handleSaveScanPaths)))
+	mux.HandleFunc("POST /settings/clear-library", s.requireAuth(s.requireRole("admin", s.handleClearLibrary)))
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
@@ -133,6 +136,19 @@ func (s *Server) withThemeCookie(next http.Handler) http.Handler {
 				Name: "lang", Value: l, Path: "/", MaxAge: 31536000,
 				SameSite: http.SameSiteLaxMode,
 			})
+		}
+		// Числовой языковой фильтр (?lang=0|1|2|3|9) запоминаем отдельно,
+		// чтобы он сохранялся при переходах по ссылкам без ?lang=.
+		if lv := r.URL.Query().Get("lang"); lv != "" {
+			if n, err := strconv.Atoi(lv); err == nil {
+				switch n {
+				case 0, 1, 2, 3, 9:
+					http.SetCookie(w, &http.Cookie{
+						Name: "lang_num", Value: lv, Path: "/", MaxAge: 31536000,
+						SameSite: http.SameSiteLaxMode,
+					})
+				}
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -230,7 +246,6 @@ func (s *Server) handlePortal(w http.ResponseWriter, r *http.Request) {
 	}
 	data := s.libData(r, "")
 	data["Nav"] = ""
-	data["Breadcrumbs"] = []Crumb{{Label: "home.crumb"}}
 	s.render(w, r, "library_home", data)
 }
 

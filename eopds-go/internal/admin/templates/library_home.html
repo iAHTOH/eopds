@@ -1,15 +1,13 @@
-{{define "layout"}}{{template "legacy_layout" .}}{{end}}
-
-{{define "legacy_body"}}
-<div class="row">
-  <div class="small-12 medium-8 large-8 small-centered columns">
-    <h3 style="text-align:center;">
-      {{T "home.greeting"}} {{if .User}}{{.User.Username}}{{else}}{{T "home.guest"}}{{end}} !
-      <img src="/static/legacy/images/homelib.jpg" alt="" style="border-radius:10px;margin-top:.5rem;">
-    </h3>
-    <p style="text-align:justify;">
-      {{T "home.intro1"}} <a href="https://ru.wikipedia.org/wiki/OPDS" target="_blank" rel="noopener">OPDS</a>{{T "home.intro2"}}
-    </p>
-  </div>
+{{define "content"}}
+<div class="card">
+  <h3 style="text-align:center;">
+    {{T "home.greeting"}} {{if .User}}{{.User.Username}}{{else}}{{T "home.guest"}}{{end}} !
+  </h3>
+  <p style="text-align:center;">
+    <span class="img-frame"><img src="/static/img/eopds_homelib.webp" alt=""></span>
+  </p>
+  <p>
+    {{T "home.intro1"}} <a href="https://ru.wikipedia.org/wiki/OPDS" target="_blank" rel="noopener">OPDS</a>{{T "home.intro2"}}
+  </p>
 </div>
 {{end}}

@@ -55,6 +55,14 @@
   </table>
 
   <p class="muted">{{T "settings.stub"}}</p>
+
+  <h2 class="section-title" id="db">{{T "settings.danger"}}</h2>
+  <p class="muted">{{T "settings.clear_library_hint"}}</p>
+  <form method="post" action="/settings/clear-library" class="danger-zone"
+        onsubmit="return confirm('{{T "settings.clear_library_confirm"}}');">
+    <input type="hidden" name="confirm" value="yes">
+    <button type="submit" class="btn-primary btn-inline btn-danger">{{T "settings.clear_library"}}</button>
+  </form>
 </div>
 <script>
 (function(){

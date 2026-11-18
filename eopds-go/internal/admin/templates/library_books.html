@@ -1,62 +1,54 @@
-{{define "layout"}}{{template "legacy_layout" .}}{{end}}
-
-{{define "legacy_body"}}
+{{define "content"}}
 {{if .ShowList}}
-  {{if .Page}}
-    {{if .Page.Items}}{{template "lib_book_list" .}}{{else}}<p class="muted">{{T "lib.empty"}}</p>{{end}}
-  {{else}}
-    <p class="muted">{{T "lib.empty"}}</p>
-  {{end}}
+  {{if .Page.Items}}{{template "lib_book_list" .}}{{else}}<p class="muted">{{T "lib.empty"}}</p>{{end}}
 {{else}}
   {{template "lib_prefix_index" .}}
 {{end}}
 {{end}}
 
 {{define "lib_prefix_index"}}
-<table class="lib-index">
-  {{range .PrefixRows}}
-  <tr>
-    <td>
-      <a href="{{.URL}}">{{.Key}}</a>
-      <span style="font-size:80%">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.books_n"}}</span>
-    </td>
-  </tr>
-  {{else}}
-  <tr><td><p class="muted">{{T "lib.empty"}}</p></td></tr>
-  {{end}}
-</table>
-{{end}}
-
-{{define "lib_book_list"}}
-{{range .Page.Items}}
-<div class="large-12 column lib-book">
-  <div class="lib-book-head">
-    <b>{{.Title}}</b>
-    <a href="/library/book/{{.ID}}" class="small button hollow" style="margin:0 .5rem;">{{T "lib.open"}}</a>
-  </div>
-  <table>
+<div class="card">
+  <table class="table lib-index">
+    {{range .PrefixRows}}
     <tr>
-      <td width="100px" style="padding:0;">
-        <a href="/library/book/{{.ID}}"><img src="/static/legacy/images/eopds_book.jpg" width="80px" alt=""></a>
-      </td>
-      <td style="font-size:80%;padding:1rem;">
-        <b>{{T "lib.field_title"}}:</b> {{.Title}}<br>
-        {{if .Authors}}<b>{{T "lib.field_authors"}}:</b>
-          {{range $i, $a := .Authors}}{{if $i}}, {{end}}{{$a}}{{end}}<br>{{end}}
-        {{if .Genres}}<b>{{T "lib.field_genres"}}:</b>
-          {{range $i, $g := .Genres}}{{if $i}}, {{end}}{{$g}}{{end}}<br>{{end}}
-        {{if .Series}}<b>{{T "lib.field_series"}}:</b>
-          {{range $i, $s := .Series}}{{if $i}}, {{end}}{{$s}}{{end}}<br>{{end}}
-        <b>{{T "lib.field_file"}}:</b> {{.Path}}/{{.Filename}}<br>
-        <b>{{T "lib.field_size"}}:</b> {{kb .SizeBytes}} {{T "lib.kb"}}<br>
-        {{if .DocDate}}<b>{{T "lib.field_date"}}:</b> {{.DocDate}}<br>{{end}}
-      </td>
+      <td><a href="{{.URL}}" class="book-title">{{.Key}}</a></td>
+      <td style="text-align:right;"><span class="muted">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.books_n"}}</span></td>
     </tr>
-    {{if .Annotation}}
-    <tr><td colspan="2"><p style="font-size:80%;">{{trim .Annotation 600}}</p></td></tr>
+    {{else}}
+    <tr><td><p class="muted">{{T "lib.empty"}}</p></td></tr>
     {{end}}
   </table>
 </div>
 {{end}}
-{{template "lib_pager" .Pagination}}
+
+{{define "lib_book_list"}}
+<div class="card">
+  <ul class="book-list">
+  {{range .Page.Items}}
+    <li class="book-row">
+      <table class="book-card">
+        <tr>
+          <td style="width:90px;padding-right:14px;">
+            <a href="/library/book/{{.ID}}">
+              <img src="/library/book/{{.ID}}/cover" width="80" alt="" loading="lazy" onerror="this.onerror=null;this.src='/static/img/eopds_nocover.webp'">
+            </a>
+          </td>
+          <td>
+            <p class="book-main">
+              <a class="book-title" href="/library/book/{{.ID}}"><b>{{.Title}}</b></a>
+              <span class="badge">{{.Format}}</span>
+            </p>
+            {{if .Authors}}<p class="muted small">{{T "lib.field_authors"}}: {{range $i, $a := .Authors}}{{if $i}}, {{end}}{{$a}}{{end}}</p>{{end}}
+            {{if .Genres}}<p class="muted small">{{T "lib.field_genres"}}: {{range $i, $g := .Genres}}{{if $i}}, {{end}}{{$g}}{{end}}</p>{{end}}
+            {{if .Series}}<p class="muted small">{{T "lib.field_series"}}: {{range $i, $s := .Series}}{{if $i}}, {{end}}{{$s}}{{end}}</p>{{end}}
+            <p class="muted small">{{T "lib.field_size"}}: {{kb .SizeBytes}} {{T "lib.kb"}}{{if .DocDate}} · {{T "lib.field_date"}}: {{.DocDate}}{{end}}</p>
+            {{if .Annotation}}<div class="annotation small">{{trim .Annotation 400}}</div>{{end}}
+          </td>
+        </tr>
+      </table>
+    </li>
+  {{end}}
+  </ul>
+  {{template "lib_pager" .Pagination}}
+</div>
 {{end}}

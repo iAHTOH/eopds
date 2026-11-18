@@ -45,8 +45,16 @@ var langMenu = []LangTab{
 }
 
 // parseLang читает ?lang= (0 = все).
+// parseLang читает языковой фильтр ?lang= (1,2,3,9) либо cookie "lang_num".
+// В отличие от языковой локали интерфейса (resolveLang), это фильтр БД.
 func parseLang(r *http.Request) int {
-	v, _ := strconv.Atoi(r.URL.Query().Get("lang"))
+	raw := r.URL.Query().Get("lang")
+	if raw == "" {
+		if c, err := r.Cookie("lang_num"); err == nil {
+			raw = c.Value
+		}
+	}
+	v, _ := strconv.Atoi(raw)
 	switch v {
 	case 1, 2, 3, 9:
 		return v
@@ -181,7 +189,9 @@ func (s *Server) handleLibraryEntity(w http.ResponseWriter, r *http.Request, sec
 	chars := r.URL.Query().Get("chars")
 	prefix := r.URL.Query().Get("prefix")
 	data := s.libData(r, section)
-	data["Lang"] = strconv.Itoa(lang)
+	// data["Lang"] оставляем локалью интерфейса (ru/en) из baseData;
+	// числовой языковой фильтр храним отдельно, чтобы не ломать язык сайта.
+	data["LangFilter"] = lang
 	data["LangTabs"] = s.buildLangTabs(r, section, lang)
 
 	// Список книг/сущностей по префиксу.
@@ -403,4 +413,23 @@ func buildPagination(path string, r *http.Request, page, pages int) Pagination {
 		last = n
 	}
 	return p
+}
+
+// handleBookCover отдаёт обложку книги (ленивое извлечение из файла + кэш).
+// Если обложки нет — 404 (шаблон подставит заглушку через onerror).
+func (s *Server) handleBookCover(w http.ResponseWriter, r *http.Request) {
+	st := s.getStore()
+	if st == nil {
+		http.NotFound(w, r)
+		return
+	}
+	id := atoi64(r.PathValue("id"))
+	cover, err := st.BookCover(r.Context(), id)
+	if err != nil || len(cover.Data) == 0 {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", cover.ContentType)
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write(cover.Data)
 }

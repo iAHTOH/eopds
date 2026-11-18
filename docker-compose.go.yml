@@ -1,4 +1,14 @@
 # Демонстрационный стек Go-ядра eopds: сервер + PostgreSQL.
+#
+# ВАЖНО: этот файл не содержит секретов и путей коллекции. Вся конфигурация
+# (БД, root-администратор, каталоги сканирования) хранится в
+# ./config/config.json, который создаёт мастер установки и можно править с
+# хоста. Каталог ./config монтируется в контейнер (bind-mount) — удобно для
+# бэкапа и ручных правок; после правок достаточно перезапустить контейнер.
+#
+# Креды PostgreSQL-сервиса берутся из .env (см. .env.example) — при первом
+# запуске они же вводятся в мастере установки и сохраняются в config.json.
+#
 # Запуск:   docker compose -f docker-compose.go.yml up --build -d
 # Открыть:  http://localhost:8080/  (мастер установки)
 # Логи:     docker compose -f docker-compose.go.yml logs -f eopds-go
@@ -7,13 +17,13 @@ services:
     image: postgres:16-alpine
     container_name: eopds-go-db
     environment:
-      POSTGRES_DB: eopds
-      POSTGRES_USER: eopds
-      POSTGRES_PASSWORD: eopds123
+      POSTGRES_DB: ${EOPDS_DB_NAME:-eopds}
+      POSTGRES_USER: ${EOPDS_DB_USER:-eopds}
+      POSTGRES_PASSWORD: ${EOPDS_DB_PASSWORD:-eopds123}
     volumes:
       - pgdata-go:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U eopds -d eopds" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${EOPDS_DB_USER:-eopds} -d ${EOPDS_DB_NAME:-eopds}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,24 +38,19 @@ services:
       db-go:
         condition: service_healthy
     environment:
-      # БД сконфигурирована, но мастер установки всё равно покажется,
-      # пока не создан root-администратор (users.is_root).
-      EOPDS_DB_TYPE: postgres
-      EOPDS_DB_HOST: db-go
-      EOPDS_DB_PORT: 5432
-      EOPDS_DB_NAME: eopds
-      EOPDS_DB_USER: eopds
-      EOPDS_DB_PASSWORD: eopds123
-      EOPDS_SERVER_ADDR: :8080
+      # Только пути/адрес (контракт развёртывания). БД и прочее — в config.json.
+      EOPDS_CONFIG_DIR: /config
+      EOPDS_ROOT_LIB: /books
+      EOPDS_SERVER_ADDR: ":8080"
     volumes:
-      - eopds-config:/config
-      # Коллекция книг (read-only): внутренние FB2 + ZIP-архивы с FB2.
-      - /run/media/ahtoh/SSD2/e-book:/library:ro
+      # Единый конфиг (bind-mount): правится с хоста, легко бэкапится.
+      - ./config:/config
+      # Коллекция книг (read-only). Какие подкаталоги сканировать —
+      # задаётся в config.json (scan_paths) или в мастере установки.
+      - /run/media/ahtoh/SSD2/e-book:/books:ro
     ports:
       - "8080:8080"
     restart: unless-stopped
 
 volumes:
   pgdata-go:
-  eopds-config:
-

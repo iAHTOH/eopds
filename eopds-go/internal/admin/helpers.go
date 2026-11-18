@@ -54,7 +54,11 @@ func resolveTheme(r *http.Request) string {
 
 // resolveLang определяет язык: ?lang=, cookie, Accept-Language, иначе "en".
 func resolveLang(r *http.Request) string {
-	if l := r.URL.Query().Get("lang"); l != "" {
+	// ?lang= трактуем как локаль интерфейса только если это известный
+	// языковой код (ru/en). Числовые значения (0..9) — это фильтр БД
+	// (язык книг), их здесь игнорируем, иначе в подменю «Кириллица»
+	// переключался бы язык сайта.
+	if l := r.URL.Query().Get("lang"); isUILang(l) {
 		return l
 	}
 	if c, err := r.Cookie("lang"); err == nil && c.Value != "" {
@@ -72,6 +76,17 @@ func resolveLang(r *http.Request) string {
 		}
 	}
 	return "en"
+}
+
+// isUILang проверяет, что значение ?lang= — код языка интерфейса (ru/en),
+// а не числовой фильтр БД (0..9).
+func isUILang(v string) bool {
+	switch v {
+	case "ru", "en":
+		return true
+	default:
+		return false
+	}
 }
 
 // langName — человекочитаемое название языка для переключателя.

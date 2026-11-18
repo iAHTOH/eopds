@@ -84,10 +84,19 @@ func serve() error {
 
 	// Пытаемся подключиться к БД (если сконфигурирована). Ошибка подключения
 	// не фатальна: сервер поднимется и покажет мастер установки/ошибку.
+	// Делаем несколько попыток — контейнер БД может стартовать параллельно.
 	ctx := context.Background()
-	if st, err := store.Open(ctx, cfg, admin.LoggerAdapter(log)); err == nil {
+	var st store.Store
+	if config.Configured(cfg) {
+		st, err = openWithRetry(ctx, cfg, log, 15, 2*time.Second)
+	}
+	if st != nil {
 		srv.SetStore(st)
 		log.Info("БД подключена", "type", cfg.DBType, "version", version.String())
+		// Применяем config.json (root-администратор, каталоги сканирования).
+		if err := srv.ApplyConfigOnStart(ctx); err != nil {
+			log.Warn("применение конфигурации", "err", err)
+		}
 		installed, _ := st.IsInstalled(ctx)
 		if !installed {
 			log.Info("система не установлена — требуется мастер установки")
@@ -124,4 +133,26 @@ func serve() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return httpSrv.Shutdown(shutdownCtx)
+}
+
+// openWithRetry пытается открыть БД attempts раз с паузой delay между попытками.
+// Нужен при параллельном старте контейнера БД (depends_on: healthy не гарантирует
+// готовность при перезапуске). Возвращает последнюю ошибку, если не вышло.
+func openWithRetry(ctx context.Context, cfg config.Config, log *slog.Logger, attempts int, delay time.Duration) (store.Store, error) {
+	var err error
+	for i := 1; i <= attempts; i++ {
+		var st store.Store
+		if st, err = store.Open(ctx, cfg, admin.LoggerAdapter(log)); err == nil {
+			return st, nil
+		}
+		if i < attempts {
+			log.Info("БД ещё не готова, повтор подключения", "attempt", i, "of", attempts, "err", err)
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+	}
+	return nil, err
 }

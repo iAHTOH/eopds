@@ -1,23 +1,23 @@
 {{define "lib_entity_body"}}
 {{if .ShowList}}
   {{if .Items}}
-    <table class="lib-index">
-      {{range .Items}}
-      <tr>
-        <td>
-          {{if eq $.LibSection "authors"}}
-            <a href="/library/books?author={{.ID}}">{{.Title}}</a>
-          {{else}}
-            <a href="/library/books?series={{.ID}}">{{.Title}}</a>
-          {{end}}
-          <span style="font-size:80%">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.books_n"}}</span>
-        </td>
-      </tr>
-      {{end}}
-    </table>
+  <div class="card">
+    <ul class="book-list">
+    {{range .Items}}
+      <li class="book-row entity-row">
+        {{if eq $.LibSection "authors"}}
+          <a class="book-title" href="/library/books?author={{.ID}}">{{.Title}}</a>
+        {{else}}
+          <a class="book-title" href="/library/books?series={{.ID}}">{{.Title}}</a>
+        {{end}}
+        <span class="muted">{{.Count}} {{T "lib.books_n"}}</span>
+      </li>
+    {{end}}
+    </ul>
     {{template "lib_pager" .Pagination}}
+  </div>
   {{else}}
-    <p class="muted">{{T "lib.empty"}}</p>
+  <p class="muted">{{T "lib.empty"}}</p>
   {{end}}
 {{else}}
   {{template "lib_entity_index" .}}
@@ -25,16 +25,16 @@
 {{end}}
 
 {{define "lib_entity_index"}}
-<table class="lib-index">
-  {{range .PrefixRows}}
-  <tr>
-    <td>
-      <a href="{{.URL}}">{{.Key}}</a>
-      <span style="font-size:80%">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.items_n"}}</span>
-    </td>
-  </tr>
-  {{else}}
-  <tr><td><p class="muted">{{T "lib.empty"}}</p></td></tr>
-  {{end}}
-</table>
+<div class="card">
+  <table class="table lib-index">
+    {{range .PrefixRows}}
+    <tr>
+      <td><a href="{{.URL}}" class="book-title">{{.Key}}</a></td>
+      <td style="text-align:right;"><span class="muted">{{T "lib.total_prefix"}} {{.Count}} {{T "lib.items_n"}}</span></td>
+    </tr>
+    {{else}}
+    <tr><td><p class="muted">{{T "lib.empty"}}</p></td></tr>
+    {{end}}
+  </table>
+</div>
 {{end}}

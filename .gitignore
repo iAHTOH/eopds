@@ -49,3 +49,7 @@ docker-compose.build.yml
 # ================== Go build artifacts ==================
 eopds-go/eopds
 eopds-go/eopds-scanner
+
+# Локальный конфиг eopds (секреты, бэкапы)
+/config/
+.env

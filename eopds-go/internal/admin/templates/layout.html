@@ -13,6 +13,7 @@
   {{template "site_top" .}}
 
   <main class="page">
+    {{if .Breadcrumbs}}{{template "lib_breadcrumbs" .}}{{end}}
     {{template "content" .}}
   </main>
 

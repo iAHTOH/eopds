@@ -57,6 +57,9 @@ func Parse(r io.Reader) (meta.BookData, error) {
 	var curAuthorFirst, curAuthorLast, curAuthorMiddle string
 	inAuthor := false
 
+	// Флаг: находимся внутри <annotation> (учитывая вложенные <p>/<emphasis>).
+	inAnnotation := false
+
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -83,6 +86,17 @@ func Parse(r io.Reader) (meta.BookData, error) {
 				}
 			}
 			switch name {
+			case "annotation":
+				// Аннотация обычно содержит вложенные <p>/<emphasis>, поэтому
+				// собираем весь текст внутри <annotation> (см. обработку CharData).
+				if inPath(stack, "title-info") {
+					inAnnotation = true
+				}
+			case "empty-line":
+				// Пустая строка внутри аннотации — разделитель абзацев.
+				if inAnnotation {
+					res.annotation = joinText(res.annotation, "")
+				}
 			case "author":
 				// Автор встречается и в title-info, и в document-info.
 				// Берём только из title-info, т.е. когда в стеке есть title-info.
@@ -129,6 +143,12 @@ func Parse(r io.Reader) (meta.BookData, error) {
 			if text == "" {
 				continue
 			}
+			// Любой текст внутри <annotation> (в т.ч. во вложенных <p>,
+			// <emphasis>, <strong> и т.п.) идёт в аннотацию.
+			if inAnnotation {
+				res.annotation = joinText(res.annotation, text)
+				continue
+			}
 			cur := stack[len(stack)-1]
 			switch cur {
 			case "book-title":
@@ -167,6 +187,9 @@ func Parse(r io.Reader) (meta.BookData, error) {
 			}
 		case xml.EndElement:
 			name := strings.ToLower(t.Name.Local)
+			if name == "annotation" && inAnnotation {
+				inAnnotation = false
+			}
 			if name == "author" && inAuthor {
 				inAuthor = false
 				full := buildAuthorName(curAuthorFirst, curAuthorLast, curAuthorMiddle)

@@ -1,12 +1,20 @@
-// Package config — конфигурация Go-сервисов EOPDS из ENV-переменных.
+// Package config — конфигурация Go-сервисов EOPDS.
 //
-// Сохраняет контракт развёртывания (docs/architecture.md, docs/deploy):
-//   - EOPDS_DB_TYPE (postgres|sqlite), EOPDS_DB_HOST/PORT/NAME/USER/PASSWORD
-//   - EOPDS_DB_PATH (sqlite), порт 8080, каталоги /config и /books.
+// Единый источник конфигурации — файл /config/config.json (создаётся мастером
+// установки либо редактируется администратором с хоста; каталог /config
+// монтируется bind-mount'ом). Файл читаемый (JSON) и удобен для бэкапа.
 //
-// Конфигурация БД может также храниться в файле /config/db.json, который
-// создаёт мастер установки (инсталлятор), если ENV не заданы. Приоритет:
-// ENV > db.json > значения по умолчанию.
+// Он объединяет:
+//   - БД (type/host/port/name/user/password/path);
+//   - каталоги сканирования (scan_paths; список, может быть несколько);
+//   - корневого администратора (username + password_hash);
+//   - адрес HTTP-сервера.
+//
+// Совместимость развёртывания: ENV-переменные (EOPDS_DB_*, EOPDS_SERVER_ADDR,
+// EOPDS_CONFIG_DIR, EOPDS_ROOT_LIB) имеют приоритет над файлом. Legacy-файл
+// /config/db.json (только БД) также поддерживается как fallback.
+//
+// Приоритет загрузки: ENV > config.json > db.json (legacy) > значения по умолчанию.
 package config
 
 import (
@@ -27,7 +35,19 @@ const (
 	DBSQLite   DBType = "sqlite"
 )
 
-// Config — полная конфигурация сервиса.
+// AdminConfig — корневой администратор, задаваемый конфигом.
+//
+// PasswordHash хранится в формате auth.HashPassword (PBKDF2-SHA256), чтобы
+// файл был безопасен для бэкапа. Поле Password (plain) допустимо только для
+// ручного заполнения: при старте оно хешируется и переносится в PasswordHash.
+type AdminConfig struct {
+	Username     string `json:"username"`
+	Email        string `json:"email,omitempty"`
+	PasswordHash string `json:"password_hash,omitempty"`
+	Password     string `json:"password,omitempty"`
+}
+
+// Config — полная конфигурация сервиса (в памяти).
 type Config struct {
 	// БД.
 	DBType     DBType
@@ -42,8 +62,35 @@ type Config struct {
 	Addr string // например ":8080"
 
 	// Каталоги.
-	ConfigDir string // /config
-	BooksDir  string // /books
+	ConfigDir string   // /config
+	ScanPaths []string // каталоги сканирования (может быть несколько)
+
+	// Корневой администратор из конфига (может быть пустым).
+	Admin AdminConfig
+}
+
+// configFile — структура /config/config.json.
+type configFile struct {
+	SchemaVersion int          `json:"schema_version,omitempty"`
+	Server        serverFile   `json:"server"`
+	DB            dbFile       `json:"db"`
+	ScanPaths     []string     `json:"scan_paths,omitempty"`
+	Admin         *AdminConfig `json:"admin,omitempty"`
+}
+
+type serverFile struct {
+	Addr string `json:"addr,omitempty"`
+}
+
+// dbFile — секция db в config.json (и legacy /config/db.json).
+type dbFile struct {
+	Type     string `json:"type"`
+	Host     string `json:"host,omitempty"`
+	Port     int    `json:"port,omitempty"`
+	Name     string `json:"name,omitempty"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+	Path     string `json:"path,omitempty"`
 }
 
 // Default — значения по умолчанию (соответствуют контракту развёртывания).
@@ -55,70 +102,126 @@ func Default() Config {
 		DBName:    "eopds",
 		Addr:      ":8080",
 		ConfigDir: "/config",
-		BooksDir:  "/books",
+		ScanPaths: nil,
 	}
 }
 
-// dbFile — структура /config/db.json, создаваемая инсталлятором.
-type dbFile struct {
-	Type     string `json:"type"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Name     string `json:"name"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	Path     string `json:"path"`
+// ConfigPath возвращает путь к единому файлу конфигурации.
+func ConfigPath(configDir string) string {
+	return filepath.Join(configDir, "config.json")
 }
 
-// DBConfigPath возвращает путь к файлу конфигурации БД.
+// DBConfigPath возвращает путь к legacy-файлу конфигурации БД.
 func DBConfigPath(configDir string) string {
 	return filepath.Join(configDir, "db.json")
 }
 
-// DBConfigured сообщает, задана ли конфигурация БД (через ENV или db.json).
+// Configured сообщает, задана ли конфигурация (ENV, config.json или db.json).
 // Если не задана — сервис должен показать мастер установки.
-func DBConfigured(cfg Config) bool {
+func Configured(cfg Config) bool {
 	if os.Getenv("EOPDS_DB_TYPE") != "" {
 		return true
 	}
-	_, err := os.Stat(DBConfigPath(cfg.ConfigDir))
-	return err == nil
+	if _, err := os.Stat(ConfigPath(cfg.ConfigDir)); err == nil {
+		return true
+	}
+	if _, err := os.Stat(DBConfigPath(cfg.ConfigDir)); err == nil {
+		return true
+	}
+	return false
 }
 
-// Load собирает конфигурацию из ENV с fallback на /config/db.json.
+// DBConfigured оставлен для совместимости — см. Configured.
+func DBConfigured(cfg Config) bool { return Configured(cfg) }
+
+// Load собирает конфигурацию: ENV > config.json > db.json (legacy) > defaults.
 func Load() (Config, error) {
 	cfg := Default()
 
-	if v := os.Getenv("EOPDS_SERVER_ADDR"); v != "" {
-		cfg.Addr = v
-	}
+	// Базовые пути из ENV (влияют на поиск файла конфига).
 	if v := os.Getenv("EOPDS_CONFIG_DIR"); v != "" {
 		cfg.ConfigDir = v
 	}
-	if v := os.Getenv("EOPDS_ROOT_LIB"); v != "" {
-		cfg.BooksDir = v
-	}
 
-	// ENV приоритетнее.
-	envType := os.Getenv("EOPDS_DB_TYPE")
-	if envType != "" {
-		cfg.applyEnv()
-		return cfg, cfg.validate()
-	}
-
-	// Fallback: файл, созданный инсталлятором.
-	if DBConfigured(cfg) {
-		if err := cfg.applyDBFile(); err != nil {
-			return cfg, err
+	// 1) Единый config.json; 2) legacy db.json.
+	var loadErr error
+	if _, err := os.Stat(ConfigPath(cfg.ConfigDir)); err == nil {
+		if err := cfg.applyConfigFile(); err != nil {
+			loadErr = err
 		}
-		return cfg, cfg.validate()
+	} else if _, err := os.Stat(DBConfigPath(cfg.ConfigDir)); err == nil {
+		if err := cfg.applyDBFile(); err != nil {
+			loadErr = err
+		}
 	}
 
-	// Не сконфигурировано — вернём дефолты; сервис покажет инсталлятор.
-	return cfg, nil
+	// 3) ENV поверх (совместимость развёртывания).
+	if v := os.Getenv("EOPDS_SERVER_ADDR"); v != "" {
+		cfg.Addr = v
+	}
+	// EOPDS_ROOT_LIB — дефолтный каталог сканирования (если список ещё пуст).
+	if v := os.Getenv("EOPDS_ROOT_LIB"); v != "" && len(cfg.ScanPaths) == 0 {
+		cfg.ScanPaths = []string{v}
+	}
+	if os.Getenv("EOPDS_DB_TYPE") != "" {
+		cfg.applyEnv()
+	}
+
+	if loadErr != nil {
+		return cfg, loadErr
+	}
+	if !Configured(cfg) {
+		// Не сконфигурировано — вернём дефолты; сервис покажет инсталлятор.
+		return cfg, nil
+	}
+	return cfg, cfg.validate()
 }
 
-// applyEnv заполняет поля БД из ENV.
+// applyConfigFile читает /config/config.json.
+func (c *Config) applyConfigFile() error {
+	b, err := os.ReadFile(ConfigPath(c.ConfigDir))
+	if err != nil {
+		return err
+	}
+	var f configFile
+	if err := json.Unmarshal(b, &f); err != nil {
+		return fmt.Errorf("config: parse config.json: %w", err)
+	}
+	if f.Server.Addr != "" {
+		c.Addr = f.Server.Addr
+	}
+	c.applyDB(f.DB)
+	if len(f.ScanPaths) > 0 {
+		c.ScanPaths = append([]string(nil), f.ScanPaths...)
+	}
+	if f.Admin != nil {
+		c.Admin = *f.Admin
+	}
+	return nil
+}
+
+// applyDB заполняет поля БД из секции db.
+func (c *Config) applyDB(f dbFile) {
+	if t := DBType(strings.ToLower(f.Type)); t != "" {
+		c.DBType = t
+	}
+	if f.Host != "" {
+		c.DBHost = f.Host
+	}
+	if f.Port != 0 {
+		c.DBPort = f.Port
+	}
+	if f.Name != "" {
+		c.DBName = f.Name
+	}
+	if f.User != "" {
+		c.DBUser = f.User
+	}
+	c.DBPassword = f.Password
+	c.DBPath = f.Path
+}
+
+// applyEnv заполняет поля БД из ENV (приоритетнее файла).
 func (c *Config) applyEnv() {
 	c.DBType = DBType(strings.ToLower(os.Getenv("EOPDS_DB_TYPE")))
 	if v := os.Getenv("EOPDS_DB_HOST"); v != "" {
@@ -143,7 +246,7 @@ func (c *Config) applyEnv() {
 	}
 }
 
-// applyDBFile читает /config/db.json.
+// applyDBFile читает legacy /config/db.json (только БД).
 func (c *Config) applyDBFile() error {
 	b, err := os.ReadFile(DBConfigPath(c.ConfigDir))
 	if err != nil {
@@ -153,26 +256,47 @@ func (c *Config) applyDBFile() error {
 	if err := json.Unmarshal(b, &f); err != nil {
 		return fmt.Errorf("config: parse db.json: %w", err)
 	}
-	c.DBType = DBType(strings.ToLower(f.Type))
-	if c.DBType == "" {
-		c.DBType = DBPostgres
-	}
-	if f.Host != "" {
-		c.DBHost = f.Host
-	}
-	if f.Port != 0 {
-		c.DBPort = f.Port
-	}
-	if f.Name != "" {
-		c.DBName = f.Name
-	}
-	c.DBUser = f.User
-	c.DBPassword = f.Password
-	c.DBPath = f.Path
+	c.applyDB(f)
 	return nil
 }
 
-// SaveDBFile сохраняет конфигурацию БД в /config/db.json (вызывается установщиком).
+// SaveConfigFile сохраняет единый конфиг в /config/config.json.
+func SaveConfigFile(configDir string, cfg Config) error {
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return fmt.Errorf("config: mkdir %s: %w", configDir, err)
+	}
+	f := configFile{
+		SchemaVersion: 2,
+		Server:        serverFile{Addr: cfg.Addr},
+		ScanPaths:     cfg.ScanPaths,
+		DB: dbFile{
+			Type:     string(cfg.DBType),
+			Host:     cfg.DBHost,
+			Port:     cfg.DBPort,
+			Name:     cfg.DBName,
+			User:     cfg.DBUser,
+			Password: cfg.DBPassword,
+			Path:     cfg.DBPath,
+		},
+	}
+	if cfg.Admin.Username != "" {
+		a := cfg.Admin
+		f.Admin = &a
+	}
+	b, err := json.MarshalIndent(f, "", "  ")
+	if err != nil {
+		return err
+	}
+	path := ConfigPath(configDir)
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return fmt.Errorf("config: write %s: %w", tmp, err)
+	}
+	return os.Rename(tmp, path)
+}
+
+// SaveDBFile — совместимость: сохраняет legacy /config/db.json без admin/scan.
+// Не рекомендуется к использованию; оставлен для внешних вызовов.
 func SaveDBFile(configDir string, cfg Config) error {
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		return fmt.Errorf("config: mkdir %s: %w", configDir, err)
@@ -193,7 +317,7 @@ func SaveDBFile(configDir string, cfg Config) error {
 	path := DBConfigPath(configDir)
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, b, 0o600); err != nil {
-		return fmt.Errorf("config: write %s: %w", tmp, err)
+		return fmt.Errorf("config: write %s: %w", path, err)
 	}
 	return os.Rename(tmp, path)
 }
@@ -234,4 +358,17 @@ func (c Config) SQLiteDSN() string {
 		return c.DBPath
 	}
 	return "file:" + c.DBPath + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
+}
+
+// LibraryRoot возвращает корневой каталог коллекции (первый каталог
+// сканирования). Используется для чтения файлов книг (обложки и т.п.),
+// где пути в БД хранятся относительно этого корня.
+func (c Config) LibraryRoot() string {
+	if len(c.ScanPaths) > 0 && c.ScanPaths[0] != "" {
+		return c.ScanPaths[0]
+	}
+	if v := os.Getenv("EOPDS_ROOT_LIB"); v != "" {
+		return v
+	}
+	return "/books"
 }
