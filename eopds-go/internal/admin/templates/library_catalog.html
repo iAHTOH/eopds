@@ -1,0 +1,58 @@
+{{define "content"}}
+<div class="card">
+  <header class="card-head">
+    <h1>{{if eq .Catalog.Name "."}}{{T "lib.root"}}{{else}}{{.Catalog.Name}}{{end}}</h1>
+    {{if eq .Catalog.Kind 1}}<span class="badge">ZIP</span>{{end}}
+  </header>
+
+  {{if .Children}}
+  <h3 class="section-title">{{T "lib.folders"}}</h3>
+  <ul class="cat-list">
+    {{range .Children}}
+    <li class="cat-row">
+      <span class="cat-icon">{{if eq .Kind 1}}&#128230;{{else}}&#128193;{{end}}</span>
+      <a class="book-title" href="/library/catalog/{{.ID}}">{{.Name}}</a>
+      <span class="muted small">
+        {{if .Books}}{{.Books}} {{T "lib.books_n"}}{{end}}
+        {{if and .Books .Children}} &middot; {{end}}
+        {{if .Children}}{{.Children}} {{T "lib.folders_n"}}{{end}}
+      </span>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+
+  {{if .Page.Items}}
+  <h3 class="section-title">{{T "lib.books"}}</h3>
+  <ul class="book-list">
+  {{range .Page.Items}}
+    <li class="book-row">
+      <table class="book-card">
+        <tr>
+          <td style="width:90px;padding-right:14px;">
+            <a href="/library/book/{{.ID}}">
+              <img src="/library/book/{{.ID}}/cover" width="80" alt="" loading="lazy" onerror="this.onerror=null;this.src='/static/img/eopds_nocover.webp'">
+            </a>
+          </td>
+          <td>
+            <p class="book-main">
+              <a class="book-title" href="/library/book/{{.ID}}"><b>{{.Title}}</b></a>
+              <span class="badge">{{.Format}}</span>
+            </p>
+            {{if .Authors}}<p class="muted small">{{T "lib.field_authors"}}: {{range $i, $a := .Authors}}{{if $i}}, {{end}}{{$a}}{{end}}</p>{{end}}
+            {{if .Genres}}<p class="muted small">{{T "lib.field_genres"}}: {{range $i, $g := .Genres}}{{if $i}}, {{end}}{{$g}}{{end}}</p>{{end}}
+            {{if .Series}}<p class="muted small">{{T "lib.field_series"}}: {{range $i, $s := .Series}}{{if $i}}, {{end}}{{$s}}{{end}}</p>{{end}}
+            <p class="muted small">{{T "lib.field_size"}}: {{kb .SizeBytes}} {{T "lib.kb"}}{{if .DocDate}} &middot; {{T "lib.field_date"}}: {{.DocDate}}{{end}}</p>
+            {{if .Annotation}}<div class="annotation small">{{trim .Annotation 400}}</div>{{end}}
+          </td>
+        </tr>
+      </table>
+    </li>
+  {{end}}
+  </ul>
+  {{template "lib_pager" .Pagination}}
+  {{else}}
+    {{if not .Children}}<p class="muted">{{T "lib.empty"}}</p>{{end}}
+  {{end}}
+</div>
+{{end}}

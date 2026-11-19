@@ -50,6 +50,7 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		"install":         "templates/install.html",
 		"home":            "templates/home.html",
 		"library":         "templates/library.html",
+		"library_catalog": "templates/library_catalog.html",
 		"library_books":   "templates/library_books.html",
 		"library_authors": "templates/library_authors.html",
 		"library_series":  "templates/library_series.html",
@@ -104,6 +105,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
 	mux.HandleFunc("GET /library", s.requireAuth(s.handleLibraryIndex))
 	mux.HandleFunc("GET /library/books", s.requireAuth(s.handleLibraryBooks))
+	mux.HandleFunc("GET /library/catalog/{id}", s.requireAuth(s.handleLibraryCatalog))
 	mux.HandleFunc("GET /library/authors", s.requireAuth(s.handleLibraryAuthors))
 	mux.HandleFunc("GET /library/series", s.requireAuth(s.handleLibrarySeries))
 	mux.HandleFunc("GET /library/genres", s.requireAuth(s.handleLibraryGenres))

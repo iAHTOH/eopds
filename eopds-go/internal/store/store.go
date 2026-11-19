@@ -59,6 +59,11 @@ type Store interface {
 	ClearLibrary(ctx context.Context) (ClearResult, error)
 	// PruneCatalogs удаляет пустые каталоги (без книг и детей); возвращает число.
 	PruneCatalogs(ctx context.Context) (int64, error)
+	// Каталоги.
+	ListRootCatalogs(ctx context.Context) ([]Catalog, error)
+	GetCatalog(ctx context.Context, id int64) (Catalog, error)
+	ListChildCatalogs(ctx context.Context, parentID int64) ([]Catalog, error)
+	ListBooksInCatalog(ctx context.Context, catalogID int64, page, size int) (LibraryPage, error)
 
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error

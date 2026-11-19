@@ -22,6 +22,9 @@ func goVersion() string { return runtime.Version() }
 // itoa — int в строку.
 func itoa(n int) string { return strconv.Itoa(n) }
 
+// itoa64 — int64 в строку.
+func itoa64(n int64) string { return strconv.FormatInt(n, 10) }
+
 // atoi — строка в int с дефолтом.
 func atoi(s string, def int) int {
 	if s == "" {

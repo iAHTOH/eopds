@@ -936,3 +936,17 @@ select:focus {
   white-space: nowrap;
 }
 .catnav-sub a:hover { background: var(--accent); color: #fff; }
+
+/* Список каталогов/папок */
+.cat-list { list-style: none; margin: 0; padding: 0; }
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.cat-row:last-child { border-bottom: none; }
+.cat-icon { font-size: 20px; line-height: 1; }
+.cat-row .book-title { flex: 0 1 auto; }
+.cat-row .muted { margin-left: auto; white-space: nowrap; }

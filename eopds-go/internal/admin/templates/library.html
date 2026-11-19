@@ -1,9 +1,24 @@
 {{define "content"}}
 <div class="card">
   <header class="card-head">
-    <h1>{{T "nav.library"}}</h1>
-    <p class="muted">{{T "library.subtitle"}}</p>
+    <h1>{{T "cat.catalogs"}}</h1>
   </header>
-  <p class="muted">{{T "library.stub"}}</p>
+  {{if .RootCatalogs}}
+  <ul class="cat-list">
+    {{range .RootCatalogs}}
+    <li class="cat-row">
+      <span class="cat-icon">{{if eq .Kind 1}}&#128230;{{else}}&#128193;{{end}}</span>
+      <a class="book-title" href="/library/catalog/{{.ID}}">{{if eq .Name "."}}{{T "lib.root"}}{{else}}{{.Name}}{{end}}</a>
+      <span class="muted small">
+        {{if .Books}}{{.Books}} {{T "lib.books_n"}}{{end}}
+        {{if and .Books .Children}} &middot; {{end}}
+        {{if .Children}}{{.Children}} {{T "lib.folders_n"}}{{end}}
+      </span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="muted">{{T "lib.empty"}}</p>
+  {{end}}
 </div>
 {{end}}

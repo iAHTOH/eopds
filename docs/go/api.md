@@ -12,6 +12,8 @@ read-only эндпоинты доступны без неё.
 | GET | `/install` | мастер первичной установки ([install.md](install.md)) |
 | POST | `/install` | обработка формы установки; успех → `303` на `/` |
 | GET | `/healthz` | простой алиас `/api/health` |
+| GET | `/library/book/{id}/cover` | обложка книги (image/*, `200`/`404`), кэш `/config/covers` |
+| POST | `/settings/clear-library` | очистка библиотеки (admin); `confirm=yes` → `303` |
 
 ## `GET /api/health`
 

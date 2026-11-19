@@ -181,7 +181,10 @@
     "cat.books": "Books",
     "cat.authors": "Authors",
     "cat.genres": "Genres",
-    "cat.series": "Series"
+    "cat.series": "Series",
+    "lib.root": "Root",
+    "lib.folders": "Folders",
+    "lib.folders_n": "folders"
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -365,6 +368,9 @@
     "cat.books": "Книги",
     "cat.authors": "Авторы",
     "cat.genres": "Жанры",
-    "cat.series": "Серии"
+    "cat.series": "Серии",
+    "lib.root": "Корень",
+    "lib.folders": "Папки",
+    "lib.folders_n": "папок"
   }
 }

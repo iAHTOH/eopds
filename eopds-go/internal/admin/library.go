@@ -160,7 +160,81 @@ func (s *Server) buildPrefixRows(ctx context.Context, st store.Store, section st
 
 // handleLibraryIndex — /library → книги, все языки.
 func (s *Server) handleLibraryIndex(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/library/books?lang=0", http.StatusSeeOther)
+	st := s.getStore()
+	if st == nil {
+		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+		return
+	}
+	cats, err := st.ListRootCatalogs(r.Context())
+	if err != nil {
+		s.log.Error("library: root catalogs", "err", err)
+	}
+	data := s.libData(r, "")
+	data["RootCatalogs"] = cats
+	s.render(w, r, "library", data)
+}
+
+// handleLibraryCatalog показывает содержимое каталога/папки: подэлементы
+// (вложенные папки, zip) и книги, лежащие непосредственно в этом узле.
+func (s *Server) handleLibraryCatalog(w http.ResponseWriter, r *http.Request) {
+	st := s.getStore()
+	if st == nil {
+		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+		return
+	}
+	id := atoi64(r.PathValue("id"))
+	cat, err := st.GetCatalog(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	children, err := st.ListChildCatalogs(r.Context(), id)
+	if err != nil {
+		s.log.Error("library: child catalogs", "err", err)
+	}
+	page := pageParam(r)
+	books, err := st.ListBooksInCatalog(r.Context(), id, page, libPageSize)
+	if err != nil {
+		s.log.Error("library: catalog books", "err", err)
+	}
+	data := s.libData(r, "")
+	data["Catalog"] = cat
+	data["Children"] = children
+	data["ShowList"] = true
+	data["Page"] = books
+	data["Breadcrumbs"] = s.buildCatalogCrumbs(r, st, cat)
+	data["Pagination"] = buildPagination(r.URL.Path, r, books.Page, books.Pages)
+	s.render(w, r, "library_catalog", data)
+}
+
+// buildCatalogCrumbs строит хлебные крошки от корня до текущего каталога.
+func (s *Server) buildCatalogCrumbs(r *http.Request, st store.Store, cat store.Catalog) []Crumb {
+	var chain []store.Catalog
+	cur := cat
+	for {
+		chain = append([]store.Catalog{cur}, chain...)
+		if cur.ParentID == 0 {
+			break
+		}
+		parent, err := st.GetCatalog(r.Context(), cur.ParentID)
+		if err != nil {
+			break
+		}
+		cur = parent
+	}
+	crumbs := []Crumb{{Label: "cat.catalogs", URL: "/library"}}
+	for i, c := range chain {
+		label := c.Name
+		if label == "." {
+			label = "lib.root"
+		}
+		if i == len(chain)-1 {
+			crumbs = append(crumbs, Crumb{Label: label})
+		} else {
+			crumbs = append(crumbs, Crumb{Label: label, URL: "/library/catalog/" + itoa64(c.ID)})
+		}
+	}
+	return crumbs
 }
 
 // handleLibraryBooks — книги: указатель префиксов / список по prefix.
