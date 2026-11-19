@@ -184,7 +184,11 @@
     "cat.series": "Series",
     "lib.root": "Root",
     "lib.folders": "Folders",
-    "lib.folders_n": "folders"
+    "lib.folders_n": "folders",
+    "search.ph_title": "Search by title…",
+    "search.ph_author": "Search by author…",
+    "search.ph_series": "Search by series…",
+    "suggest.empty": "Nothing found"
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -371,6 +375,10 @@
     "cat.series": "Серии",
     "lib.root": "Корень",
     "lib.folders": "Папки",
-    "lib.folders_n": "папок"
+    "lib.folders_n": "папок",
+    "search.ph_title": "Поиск по названию…",
+    "search.ph_author": "Поиск по автору…",
+    "search.ph_series": "Поиск по серии…",
+    "suggest.empty": "Ничего не найдено"
   }
 }

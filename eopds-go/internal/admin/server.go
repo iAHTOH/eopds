@@ -112,6 +112,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library/book/{id}", s.requireAuth(s.handleLibraryBook))
 	mux.HandleFunc("GET /library/book/{id}/cover", s.requireAuth(s.handleBookCover))
 	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
+	mux.HandleFunc("GET /library/suggest", s.requireAuth(s.handleLibrarySuggest))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))

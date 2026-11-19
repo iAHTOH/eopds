@@ -174,6 +174,53 @@ func (s *Server) handleLibraryIndex(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "library", data)
 }
 
+// handleLibrarySuggest — JSON-подсказки для живого поиска (autocomplete).
+// GET /library/suggest?q=...&by=title|author|series → [{id,title,authors,annotation,format}]
+func (s *Server) handleLibrarySuggest(w http.ResponseWriter, r *http.Request) {
+	empty := struct {
+		Items []suggestItem `json:"items"`
+	}{Items: []suggestItem{}}
+	st := s.getStore()
+	if st == nil {
+		writeJSON(w, http.StatusOK, empty)
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	by := r.URL.Query().Get("by")
+	if len([]rune(q)) < 2 {
+		writeJSON(w, http.StatusOK, empty)
+		return
+	}
+	books, err := st.SuggestBooks(r.Context(), q, by, 5)
+	if err != nil {
+		s.log.Error("library: suggest", "err", err)
+		writeJSON(w, http.StatusInternalServerError, empty)
+		return
+	}
+	out := struct {
+		Items []suggestItem `json:"items"`
+	}{Items: make([]suggestItem, 0, len(books))}
+	for _, b := range books {
+		out.Items = append(out.Items, suggestItem{
+			ID:         b.ID,
+			Title:      b.Title,
+			Authors:    b.Authors,
+			Annotation: trimText(b.Annotation, 240),
+			Format:     b.Format,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// suggestItem — мини-карточка книги для автоподсказок.
+type suggestItem struct {
+	ID         int64    `json:"id"`
+	Title      string   `json:"title"`
+	Authors    []string `json:"authors,omitempty"`
+	Annotation string   `json:"annotation,omitempty"`
+	Format     string   `json:"format,omitempty"`
+}
+
 // handleLibraryCatalog показывает содержимое каталога/папки: подэлементы
 // (вложенные папки, zip) и книги, лежащие непосредственно в этом узле.
 func (s *Server) handleLibraryCatalog(w http.ResponseWriter, r *http.Request) {

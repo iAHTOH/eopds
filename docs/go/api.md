@@ -14,6 +14,7 @@ read-only эндпоинты доступны без неё.
 | GET | `/healthz` | простой алиас `/api/health` |
 | GET | `/library/book/{id}/cover` | обложка книги (image/*, `200`/`404`), кэш `/config/covers` |
 | POST | `/settings/clear-library` | очистка библиотеки (admin); `confirm=yes` → `303` |
+| GET | `/library/suggest` | JSON-подсказки живого поиска (`?q=&by=title\|author\|series`) |
 
 ## `GET /api/health`
 
@@ -60,6 +61,31 @@ read-only эндпоинты доступны без неё.
   "checked_at": "2026-01-16T10:00:00Z"
 }
 ```
+
+## `GET /library/suggest`
+
+Подсказки живого поиска для веб-библиотеки (используется фронтендом строки поиска).
+
+**Параметры запроса:**
+
+| Параметр | Тип | Описание |
+|---|---|---|
+| `q` | string | строка поиска; короче 2 символов → пустой `items` |
+| `by` | string | `title` (по названию, по умолчанию), `author` (по автору), `series` (по серии) |
+
+**Коды ответов:** `200` — всегда (при ошибке БД — `500`).
+
+**Пример:** `GET /library/suggest?q=анна&by=title`
+
+```json
+{"items":[
+  {"id":11364,"title":"Анна Каренина","authors":["Лев Толстой"],
+   "annotation":"«Анна Каренина» — …","format":"fb2"}
+]}
+```
+
+Аннотация обрезается до 240 символов. Обложка — отдельным запросом
+`/library/book/{id}/cover`.
 
 ## `GET /api/forum/latest-topics`
 

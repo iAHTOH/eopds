@@ -64,6 +64,8 @@ type Store interface {
 	GetCatalog(ctx context.Context, id int64) (Catalog, error)
 	ListChildCatalogs(ctx context.Context, parentID int64) ([]Catalog, error)
 	ListBooksInCatalog(ctx context.Context, catalogID int64, page, size int) (LibraryPage, error)
+	// SuggestBooks — быстрые подсказки для автопоиска (by: title|author|series).
+	SuggestBooks(ctx context.Context, q, by string, limit int) ([]LibraryBook, error)
 
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error

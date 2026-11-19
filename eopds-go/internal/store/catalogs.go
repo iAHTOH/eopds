@@ -5,17 +5,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Catalog — узел каталога (папка или zip). Kind: 0=dir, 1=zip, 2=inpx.
 type Catalog struct {
-	ID         int64
-	ParentID   int64 // 0 — корень
-	Name       string
-	Path       string
-	Kind       int
-	Books      int64 // количество книг непосредственно в этом узле
-	Children   int64 // количество прямых дочерних каталогов/папок
+	ID       int64
+	ParentID int64 // 0 — корень
+	Name     string
+	Path     string
+	Kind     int
+	Books    int64 // количество книг непосредственно в этом узле
+	Children int64 // количество прямых дочерних каталогов/папок
 }
 
 // CatalogPage — содержимое каталога: подэлементы и книги.
@@ -132,4 +133,52 @@ func (s *DBStore) ListBooksInCatalog(ctx context.Context, catalogID int64, page,
 	}
 	pages := int((total + int64(size) - 1) / int64(size))
 	return LibraryPage{Items: items, Total: total, Page: page, Size: size, Pages: pages}, nil
+}
+
+// SuggestBooks — быстрый поиск книг для автоподсказок (минимум полей).
+// by: "title" (по названию), "author" (по автору), "series" (по серии).
+// Возвращает до limit книг с авторами и аннотацией.
+func (s *DBStore) SuggestBooks(ctx context.Context, q, by string, limit int) ([]LibraryBook, error) {
+	q = strings.TrimSpace(strings.ToLower(q))
+	if q == "" {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 20 {
+		limit = 5
+	}
+	like := "%" + q + "%"
+	var where string
+	switch by {
+	case "author":
+		where = "EXISTS (SELECT 1 FROM book_authors ba JOIN authors a ON a.id = ba.author_id " +
+			"WHERE ba.book_id = b.id AND a.search_full_name LIKE " + s.ph(1) + ")"
+	case "series":
+		where = "EXISTS (SELECT 1 FROM book_series bs JOIN series se ON se.id = bs.series_id " +
+			"WHERE bs.book_id = b.id AND se.search_title LIKE " + s.ph(1) + ")"
+	default: // title
+		where = "b.search_title LIKE " + s.ph(1)
+	}
+	sqlText := "SELECT b.id, b.title, b.format, b.size_bytes, b.lang, b.docdate, b.annotation, b.path, b.filename " +
+		"FROM books b WHERE " + where + " ORDER BY b.search_title, b.id LIMIT " + s.ph(2)
+	rows, err := s.db.QueryContext(ctx, sqlText, like, limit)
+	if err != nil {
+		return nil, fmt.Errorf("store: suggest books: %w", err)
+	}
+	defer rows.Close()
+	var items []LibraryBook
+	for rows.Next() {
+		var b LibraryBook
+		if err := rows.Scan(&b.ID, &b.Title, &b.Format, &b.SizeBytes, &b.Lang, &b.DocDate,
+			&b.Annotation, &b.Path, &b.Filename); err != nil {
+			return nil, err
+		}
+		items = append(items, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := s.fillBookRelations(ctx, items); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

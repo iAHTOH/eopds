@@ -66,14 +66,18 @@
 {{if .User}}
 <div class="subbar">
   <div class="subbar-inner">
-    <form class="searchbar" method="get" action="/library/search" role="search">
-      <input type="search" name="q" value="{{.Query}}" placeholder="{{T "search.placeholder"}}" aria-label="{{T "search.placeholder"}}" minlength="1">
-      <select name="by" aria-label="{{T "search.by"}}">
-        <option value="title">{{T "search.by_title"}}</option>
-        <option value="author">{{T "search.by_author"}}</option>
-        <option value="series">{{T "search.by_series"}}</option>
-      </select>
-      <button type="submit" class="btn-primary btn-inline">{{T "search.submit"}}</button>
+    <form class="searchbar" method="get" action="/library/search" role="search" autocomplete="off">
+      <input type="search" name="q" value="{{.Query}}" placeholder="{{T "search.ph_title"}}" aria-label="{{T "search.placeholder"}}" minlength="1">
+      <input type="hidden" name="by" value="title">
+      <div class="suggest" hidden aria-live="polite"></div>
+      <div class="catnav-item has-sub search-type">
+        <button type="submit" class="search-submit">{{T "search.submit"}}</button>
+        <div class="catnav-sub search-type-menu" role="menu">
+          <button type="button" role="menuitem" data-by="title" data-ph="{{T "search.ph_title"}}">{{T "search.by_title"}}</button>
+          <button type="button" role="menuitem" data-by="author" data-ph="{{T "search.ph_author"}}">{{T "search.by_author"}}</button>
+          <button type="button" role="menuitem" data-by="series" data-ph="{{T "search.ph_series"}}">{{T "search.by_series"}}</button>
+        </div>
+      </div>
     </form>
     <nav class="catnav">
       <a href="/library" class="catnav-item{{if eq $.LibSection ""}} active{{end}}">{{T "cat.catalogs"}}</a>
@@ -115,9 +119,64 @@
 (function(){
   var f = document.querySelector('.searchbar');
   if (!f) return;
+  var input = f.querySelector('[name="q"]');
+  var byHidden = f.querySelector('[name="by"]');
+  var menu = f.querySelector('.search-type-menu');
+  if (!menu) return;
+
+  menu.addEventListener('click', function(e){
+    var b = e.target.closest('[data-by]');
+    if (!b) return;
+    e.preventDefault();
+    byHidden.value = b.getAttribute('data-by');
+    var ph = b.getAttribute('data-ph');
+    if (ph) input.placeholder = ph;
+    input.focus();
+  });
+
+  // Живые подсказки (мини-карточки книг).
+  var box = f.querySelector('.suggest');
+  var timer = null, seq = 0, lastQ = '';
+  var emptyText = '{{T "suggest.empty"}}';
+
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
+
+  function hide(){ box.hidden = true; box.innerHTML=''; }
+  function render(items){
+    if (!items || !items.length) { box.innerHTML = '<div class="suggest-empty">'+esc(emptyText)+'</div>'; box.hidden=false; return; }
+    var h = '';
+    items.forEach(function(b){
+      var authors = b.authors && b.authors.length ? b.authors.join(', ') : '';
+      h += '<a class="suggest-item" href="/library/book/'+b.id+'">'
+         +   '<img class="suggest-cover" src="/library/book/'+b.id+'/cover" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'/static/img/eopds_nocover.webp\'">'
+         +   '<div class="suggest-body">'
+         +     '<div class="suggest-title">'+esc(b.title)+'</div>'
+         +     (authors ? '<div class="suggest-authors">'+esc(authors)+'</div>' : '')
+         +     (b.annotation ? '<div class="suggest-annot">'+esc(b.annotation)+'</div>' : '')
+         +   '</div>'
+         + '</a>';
+    });
+    box.innerHTML = h; box.hidden = false;
+  }
+  function load(){
+    var q = input.value.trim();
+    if (q === lastQ) return;
+    lastQ = q;
+    if (q.length < 2) { hide(); return; }
+    var mySeq = ++seq;
+    fetch('/library/suggest?q=' + encodeURIComponent(q) + '&by=' + encodeURIComponent(byHidden.value))
+      .then(function(r){ return r.ok ? r.json() : {items:[]}; })
+      .then(function(d){ if (mySeq === seq) render(d.items || []); })
+      .catch(function(){ if (mySeq === seq) hide(); });
+  }
+  input.addEventListener('input', function(){ clearTimeout(timer); timer = setTimeout(load, 220); });
+  input.addEventListener('focus', function(){ if (input.value.trim().length >= 2 && !lastQ) load(); });
+  document.addEventListener('click', function(e){ if (!f.contains(e.target)) hide(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') hide(); });
+
   f.addEventListener('submit', function(e){
-    var by = f.querySelector('[name="by"]').value;
-    var q = f.querySelector('[name="q"]').value.trim();
+    var by = byHidden.value;
+    var q = input.value.trim();
     if (!q) { e.preventDefault(); return; }
     if (by === 'author') { e.preventDefault(); location.href = '/library/authors?prefix=' + encodeURIComponent(q); }
     else if (by === 'series') { e.preventDefault(); location.href = '/library/series?prefix=' + encodeURIComponent(q); }
