@@ -53,8 +53,8 @@ func (s *DBStore) BookCover(ctx context.Context, id int64) (Cover, error) {
 	}
 
 	c := Cover{Data: data, ContentType: ctype}
-	s.writeCoverCache(id, c)      // best-effort
-	s.registerCover(ctx, id, c)   // best-effort
+	s.writeCoverCache(id, c)    // best-effort
+	s.registerCover(ctx, id, c) // best-effort
 	return c, nil
 }
 
@@ -83,8 +83,8 @@ func (s *DBStore) extractCoverFromFile(path, filename string) ([]byte, string, e
 		return nil, "", fb2.ErrNoCover
 	}
 
-	// Обычный файл.
-	f, err := os.Open(full)
+	// Обычный файл: <root>/<path>/<filename>.
+	f, err := os.Open(filepath.Join(full, filepath.FromSlash(filename)))
 	if err != nil {
 		return nil, "", fmt.Errorf("store: cover: open file: %w", err)
 	}

@@ -1,9 +1,13 @@
 package admin
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -534,6 +538,99 @@ func buildPagination(path string, r *http.Request, page, pages int) Pagination {
 		last = n
 	}
 	return p
+}
+
+// handleBookDownload отдаёт файл книги авторизованному пользователю.
+// GET /library/book/{id}/download?fmt=<fmt> — поток файла (с диска или из ZIP)
+// как вложение. fmt: пусто/"<исходный>" — как есть; "fb2+zip" — упаковать в ZIP;
+// прочие форматы (конвертация) пока возвращают 404 (конвертер не подключён).
+func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
+	st := s.getStore()
+	if st == nil {
+		http.NotFound(w, r)
+		return
+	}
+	id := atoi64(r.PathValue("id"))
+	book, err := st.GetBook(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	fmtParam := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("fmt")))
+
+	// Штатно: скачивание кладёт книгу на полку пользователя (для будущей
+	// «книжной полки»). Ошибку не прерываем — она не критична для выдачи файла.
+	if u := currentUser(r); u != nil {
+		if err := st.AddToShelf(r.Context(), u.ID, id); err != nil {
+			s.log.Error("library: add to shelf", "id", id, "err", err)
+		}
+	}
+
+	src, err := st.BookFile(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer src.Reader.Close()
+
+	base := downloadBaseName(book)
+	switch fmtParam {
+	case "", book.Format:
+		// Отдать исходный файл как есть.
+		name := base + "." + book.Format
+		w.Header().Set("Content-Type", src.ContentType)
+		if src.Size >= 0 {
+			w.Header().Set("Content-Length", itoa64(src.Size))
+		}
+		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(name))
+		if _, err := io.Copy(w, src.Reader); err != nil {
+			s.log.Error("library: download", "id", id, "err", err)
+		}
+	case "fb2+zip", "zip":
+		// Упаковать файл в ZIP на лету. Имя внутри архива — с расширением книги.
+		data, err := io.ReadAll(src.Reader)
+		if err != nil {
+			s.log.Error("library: download read", "id", id, "err", err)
+			http.Error(w, "read error", http.StatusInternalServerError)
+			return
+		}
+		var buf bytes.Buffer
+		zw := zip.NewWriter(&buf)
+		entry, err := zw.Create(base + "." + book.Format)
+		if err != nil {
+			http.Error(w, "zip error", http.StatusInternalServerError)
+			return
+		}
+		if _, err := entry.Write(data); err != nil {
+			http.Error(w, "zip error", http.StatusInternalServerError)
+			return
+		}
+		if err := zw.Close(); err != nil {
+			http.Error(w, "zip error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Length", itoa64(int64(buf.Len())))
+		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(base+".zip"))
+		_, _ = w.Write(buf.Bytes())
+	default:
+		// Конвертация в другие форматы — не подключена (см. roadmap).
+		http.NotFound(w, r)
+	}
+}
+
+// downloadBaseName формирует имя файла для скачивания из названия книги
+// (без расширения), безопасное для заголовков.
+func downloadBaseName(b store.LibraryBook) string {
+	name := strings.TrimSpace(b.Title)
+	if name == "" {
+		// Без названия — имя исходного файла без расширения.
+		name = strings.TrimSuffix(b.Filename, filepath.Ext(b.Filename))
+	}
+	if name == "" {
+		name = "book"
+	}
+	return name
 }
 
 // handleBookCover отдаёт обложку книги (ленивое извлечение из файла + кэш).

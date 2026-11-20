@@ -66,6 +66,10 @@ type Store interface {
 	ListBooksInCatalog(ctx context.Context, catalogID int64, page, size int) (LibraryPage, error)
 	// SuggestBooks — быстрые подсказки для автопоиска (by: title|author|series).
 	SuggestBooks(ctx context.Context, q, by string, limit int) ([]LibraryBook, error)
+	// BookFile открывает файл книги (на диске или в ZIP) для скачивания.
+	BookFile(ctx context.Context, id int64) (BookSource, error)
+	// AddToShelf добавляет книгу на полку пользователя (обновляет last_read_at).
+	AddToShelf(ctx context.Context, userID, bookID int64) error
 
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error

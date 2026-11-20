@@ -27,11 +27,13 @@
   <p class="muted">{{T "scan.no_paths"}}</p>
   {{end}}
 
+  {{if .IsAdmin}}
   <form method="post" action="/scan/run" class="scan-run">
     <button type="submit" class="btn-primary btn-inline">{{T "scan.run"}}</button>
     <a class="muted" href="/settings#scan">{{T "scan.edit_paths"}}</a>
   </form>
 
   <p class="muted small">{{T "scan.note"}}</p>
+  {{end}}
 </div>
 {{end}}

@@ -13,6 +13,7 @@ read-only эндпоинты доступны без неё.
 | POST | `/install` | обработка формы установки; успех → `303` на `/` |
 | GET | `/healthz` | простой алиас `/api/health` |
 | GET | `/library/book/{id}/cover` | обложка книги (image/*, `200`/`404`), кэш `/config/covers` |
+| GET | `/library/book/{id}/download` | скачивание файла книги (`?fmt=`, только авторизованным) |
 | POST | `/settings/clear-library` | очистка библиотеки (admin); `confirm=yes` → `303` |
 | GET | `/library/suggest` | JSON-подсказки живого поиска (`?q=&by=title\|author\|series`) |
 
@@ -86,6 +87,33 @@ read-only эндпоинты доступны без неё.
 
 Аннотация обрезается до 240 символов. Обложка — отдельным запросом
 `/library/book/{id}/cover`.
+
+## `GET /library/book/{id}/download`
+
+Скачивание файла книги. **Требует авторизации** (гость → `303` на `/login`).
+Ответ — файл (`Content-Disposition: attachment`), не JSON.
+
+**Параметры:**
+
+| Параметр | Тип | Описание |
+|---|---|---|
+| `id` | path | id книги |
+| `fmt` | query | пусто/`<исходный>` — как есть; `fb2+zip` — ZIP «на лету»; прочие форматы (конвертация) → `404` |
+
+**Коды ответов:**
+
+| Код | Значение |
+|---|---|
+| 200 | файл отдан |
+| 303 | гость → редирект на `/login` |
+| 404 | книга не найдена, файл отсутствует или формат пока не поддерживается |
+
+**Заголовки ответа:** `Content-Type` по формату (`application/x-fictionbook+xml`,
+`application/epub+zip`, `application/zip`, …), `Content-Length` (если известен),
+`Content-Disposition: attachment; filename*=UTF-8''<name>`.
+
+**Побочный эффект:** для авторизованного пользователя книга добавляется на его
+полку (`bookshelf`, обновляется `last_read_at`).
 
 ## `GET /api/forum/latest-topics`
 

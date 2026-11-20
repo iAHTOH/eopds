@@ -1062,3 +1062,17 @@ select:focus {
 }
 .suggest-item:hover .suggest-title { color: var(--accent); }
 .suggest-empty { padding: 10px 12px; color: var(--muted); font-size: 13px; }
+
+/* Ссылки скачивания в карточке книги */
+.download-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dl-link {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  transition: color .12s, border-color .12s, background-color .12s;
+}
+.dl-link:hover { color: var(--accent); border-color: var(--accent); background: var(--hover-bg); }

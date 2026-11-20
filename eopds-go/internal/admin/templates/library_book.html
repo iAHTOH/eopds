@@ -13,10 +13,16 @@
         {{if .Book.Authors}}<p><b>{{T "lib.field_authors"}}:</b> {{range $i, $a := .Book.Authors}}{{if $i}}, {{end}}{{$a}}{{end}}</p>{{end}}
         {{if .Book.Genres}}<p><b>{{T "lib.field_genres"}}:</b> {{range $i, $g := .Book.Genres}}{{if $i}}, {{end}}{{$g}}{{end}}</p>{{end}}
         {{if .Book.Series}}<p><b>{{T "lib.field_series"}}:</b> {{range $i, $s := .Book.Series}}{{if $i}}, {{end}}{{$s}}{{end}}</p>{{end}}
-        <p><b>{{T "lib.field_file"}}:</b> <span class="muted">{{.Book.Path}}/{{.Book.Filename}}</span></p>
-        <p><b>{{T "lib.field_size"}}:</b> {{kb .Book.SizeBytes}} {{T "lib.kb"}}</p>
         {{if .Book.DocDate}}<p><b>{{T "lib.field_date"}}:</b> {{.Book.DocDate}}</p>{{end}}
         {{if .Book.Lang}}<p><b>{{T "lib.field_lang"}}:</b> {{.Book.Lang}}</p>{{end}}
+        <p><b>{{T "lib.field_size"}}:</b> {{kb .Book.SizeBytes}} {{T "lib.kb"}}</p>
+        <p class="download-row">
+          <b>{{T "lib.download"}}:</b>
+          <a class="dl-link" href="/library/book/{{.Book.ID}}/download?fmt={{.Book.Format}}">{{.Book.Format}}</a>
+          {{if eq .Book.Format "fb2"}}
+          <a class="dl-link" href="/library/book/{{.Book.ID}}/download?fmt=fb2%2Bzip">fb2+zip</a>
+          {{end}}
+        </p>
       </td>
     </tr>
   </table>

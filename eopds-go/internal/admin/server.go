@@ -111,6 +111,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library/genres", s.requireAuth(s.handleLibraryGenres))
 	mux.HandleFunc("GET /library/book/{id}", s.requireAuth(s.handleLibraryBook))
 	mux.HandleFunc("GET /library/book/{id}/cover", s.requireAuth(s.handleBookCover))
+	mux.HandleFunc("GET /library/book/{id}/download", s.requireAuth(s.handleBookDownload))
 	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
 	mux.HandleFunc("GET /library/suggest", s.requireAuth(s.handleLibrarySuggest))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
@@ -202,6 +203,7 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 	}
 	data := map[string]any{
 		"User":       user,
+		"IsAdmin":    user != nil && (user.IsRoot || user.Role == "admin"),
 		"Version":    version.String(),
 		"AppName":    "EOPDS",
 		"Theme":      resolveTheme(r),
