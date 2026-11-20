@@ -29,10 +29,8 @@
 ## Структура репозитория (кратко)
 
 ```
-eopds/                 # Django-приложение (web, OPDS, читалка)
-eopds-go/              # Go: сканер + админка (подкоманды scan / admin)
+eopds-go/              # Go: сканер + админка + веб-библиотека (подкоманды scan / serve)
 docs/                  # документация (этот каталог)
-scanner_go/            # (историческое имя; см. eopds-go)
 ```
 
 См. также [architecture.md](architecture.md).

@@ -37,7 +37,7 @@ eopds-go/
 
 ### `eopds scan`
 
-Параллельный сканер (заменяет Python-сканер при `EOPDS_SCANNER_ENGINE=go`).
+Параллельный сканер (нативный приёмник в БД — `internal/scansvc`).
 Параметры: `--root`, `--workers`, `--zip`, `--exts`, `--level`.
 Выдаёт JSON Lines в stdout (контракт `meta`). Подробнее — [scanner.md](scanner.md).
 

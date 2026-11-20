@@ -12,14 +12,14 @@
 ## Структура
 
 ### Обзор
-- [architecture.md](architecture.md) — общая архитектура системы (Python + Go).
+- [architecture.md](architecture.md) — общая архитектура системы (Go).
 - [versioning.md](versioning.md) — версионирование, схема БД, проверка обновлений.
 - [db-schema.md](db-schema.md) — проектирование новой схемы БД для Go-ядра.
 - [roadmap.md](roadmap.md) — план развития проекта.
 
 ### Развёртывание
 - [deploy/docker.md](deploy/docker.md) — запуск в Docker (PostgreSQL и SQLite).
-- [deploy/configuration.md](deploy/configuration.md) — все параметры конфигурации (ENV и constance).
+- [deploy/configuration.md](deploy/configuration.md) — все параметры конфигурации (ENV и config.json).
 
 ### Разработка
 - [architecture.md](architecture.md) — как устроен код.

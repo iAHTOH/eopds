@@ -14,7 +14,7 @@
 
 Она передаётся:
 - **В Go** — при сборке: `-ldflags "-X main.version=$(cat VERSION)"`.
-- **В Python** — через `eopds_web_backend/settings.py` (`VERSION`) при старте (читается из `VERSION`).
+  Версию отдаёт `/api/health` и `/api/version`.
 
 Никаких дублирующих версий в коде — только `VERSION`.
 

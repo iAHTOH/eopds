@@ -1,75 +1,35 @@
-# ================== Большие папки ==================
-books/
-test_books/
-.venv/
-venv/
-env/
-
+# Контекст сборки Go-ядра (Dockerfile.go копирует только eopds-go/ и VERSION).
+# Задаёт, что НЕ отправлять в контекст docker build.
 # ================== Git ==================
 .git/
 .gitignore
 .gitattributes
-
-# ================== Python ==================
-__pycache__/
-*.pyc
-*.pyo
-.Python
-
-# ================== Базы данных ==================
-*.sqlite3
-db/
-db.sqlite3*
-
-# ================== Логи и темпы ==================
-*.log
-opds_catalog/log/
-opds_catalog/tmp/
-tmp/
-
-# ================== Кэш ==================
-opds_catalog/cache/
-
-# ================== IDE ==================
-.vscode/
-.idea/
-.devcontainer/
-.project
-.pydevproject
-.settings/
-
-# ================== Старые конвертеры (не используются) ==================
-convert/fb2conv/fb2conv-1.5.2.src.zip
-convert/fb2conv/kindlegen_linux_2.6_i386_v2_9.tar.gz
-convert/fb2epub/
-convert/fb2toepub/
-
-# ================== Frontend assets (только скомпилированные) ==================
-assets/
-node_modules/
 
 # ================== Система ==================
 .DS_Store
 Desktop.ini
 Thumbs.db
 
-# ================== Докер ==================
-Dockerfile
-docker-compose*.yml
-.dockerignore
-
-# ================== Окружение ==================
+# ================== IDE ==================
+.vscode/
+.idea/
+.devcontainer/
+# ================== Окружение и данные ==================
 .env
 .env.*
 *.env
-.eopds_devcontainer
+config/
+books/
+# ================== Логи и темпы ==================
+*.log
+tmp/
 
 # ================== Документация ==================
 *.md
 License
-raspberry.txt
-robots.txt
-_config.yml
 
-# ================== Статика (собирается отдельно) ==================
-static_root/
+# ================== Go build artifacts ==================
+eopds-go/eopds
+eopds-go/eopds-scanner
+eopds-go/eopds-reset
+

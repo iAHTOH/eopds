@@ -8,39 +8,21 @@ db.sqlite3-journal
 
 # ================== Logs & Temp ==================
 *.log
-opds_catalog/log/
-opds_catalog/tmp/
+*.pid
 tmp/
-
-# ================== Python ==================
-__pycache__/
-*.pyc
-*.pyo
-
-# ================== Docker & Dev Environment ==================
-Dockerfile
-docker-compose.yml
-.dockerignore
-
+# ================== Dev Environment ==================
 .devcontainer/
 .vscode/
-
 # ================== Other ==================
 *.env
-*.pid
-eopds_web_backend/covers/
-opds_catalog/cache/
+.env
 .DS_Store
+
 # ================== IDE files ==================
 .project
-.pydevproject
 .settings/
 
-# ================== CI ==================
-.travis.yml
-
 # ================== Build helpers ==================
-docker-compose.build.yml
 .env.build
 
 # ================== AI assistant / tooling ==================
@@ -53,4 +35,4 @@ eopds-go/eopds-reset
 
 # Локальный конфиг eopds (секреты, бэкапы)
 /config/
-.env
+
