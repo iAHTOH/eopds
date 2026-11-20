@@ -9,10 +9,9 @@
         <img src="/library/book/{{.Book.ID}}/cover" width="160" alt="" onerror="this.onerror=null;this.src='/static/img/eopds_nocover.webp'" style="border-radius:8px;">
       </td>
       <td style="vertical-align:top;padding-left:20px;">
-        <p><b>{{T "lib.field_title"}}:</b> {{.Book.Title}} <span class="badge">{{.Book.Format}}</span></p>
-        {{if .Book.Authors}}<p><b>{{T "lib.field_authors"}}:</b> {{range $i, $a := .Book.Authors}}{{if $i}}, {{end}}{{$a}}{{end}}</p>{{end}}
-        {{if .Book.Genres}}<p><b>{{T "lib.field_genres"}}:</b> {{range $i, $g := .Book.Genres}}{{if $i}}, {{end}}{{$g}}{{end}}</p>{{end}}
-        {{if .Book.Series}}<p><b>{{T "lib.field_series"}}:</b> {{range $i, $s := .Book.Series}}{{if $i}}, {{end}}{{$s}}{{end}}</p>{{end}}
+        {{if .Book.Authors}}<p><b>{{T "lib.field_authors"}}:</b> {{range $i, $a := .Book.Authors}}{{if $i}}, {{end}}<a href="/library/books?author={{$a.ID}}">{{$a.Name}}</a>{{end}}</p>{{end}}
+        {{if .Book.Genres}}<p><b>{{T "lib.field_genres"}}:</b> {{range $i, $g := .Book.Genres}}{{if $i}}, {{end}}<a href="/library/books?genre={{$g.ID}}">{{$g.Code}}</a>{{end}}</p>{{end}}
+        {{if .Book.Series}}<p><b>{{T "lib.field_series"}}:</b> {{range $i, $s := .Book.Series}}{{if $i}}, {{end}}<a href="/library/books?series={{$s.ID}}">{{$s.Title}}</a>{{if $s.Seq}} #{{$s.Seq}}{{end}}{{end}}</p>{{end}}
         {{if .Book.DocDate}}<p><b>{{T "lib.field_date"}}:</b> {{.Book.DocDate}}</p>{{end}}
         {{if .Book.Lang}}<p><b>{{T "lib.field_lang"}}:</b> {{.Book.Lang}}</p>{{end}}
         <p><b>{{T "lib.field_size"}}:</b> {{kb .Book.SizeBytes}} {{T "lib.kb"}}</p>
@@ -28,9 +27,9 @@
   </table>
   {{if .Book.Annotation}}
   <div class="annotation" style="margin-top:16px;">
-    <h3 class="section-title">{{T "lib.annotation"}}</h3>
     <p>{{.Book.Annotation}}</p>
   </div>
   {{end}}
 </div>
 {{end}}
+

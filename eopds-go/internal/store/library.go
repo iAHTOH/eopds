@@ -9,6 +9,25 @@ import (
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
 )
 
+// AuthorRef — ссылка на автора (для ссылок в UI).
+type AuthorRef struct {
+	ID   int64
+	Name string
+}
+
+// GenreRef — ссылка на жанр (для ссылок в UI).
+type GenreRef struct {
+	ID   int64
+	Code string
+}
+
+// SeriesRef — ссылка на серию и номер книги в ней.
+type SeriesRef struct {
+	ID    int64
+	Title string
+	Seq   int
+}
+
 // LibraryBook — книга для списков библиотеки (с агрегированными связями).
 type LibraryBook struct {
 	ID         int64
@@ -20,10 +39,9 @@ type LibraryBook struct {
 	Annotation string
 	Path       string
 	Filename   string
-	Authors    []string
-	Genres     []string
-	Series     []string
-	SeqNo      []int
+	Authors    []AuthorRef
+	Genres     []GenreRef
+	Series     []SeriesRef
 }
 
 // AlphabetItem — элемент алфавитного указателя (первый символ + количество).
@@ -154,19 +172,23 @@ func (s *DBStore) fillBookRelations(ctx context.Context, items []LibraryBook) er
 	placeholders := s.inList(len(ids))
 
 	// Авторы.
-	aq := "SELECT ba.book_id, a.full_name FROM book_authors ba JOIN authors a ON a.id=ba.author_id " +
+	aq := "SELECT ba.book_id, a.id, a.full_name FROM book_authors ba JOIN authors a ON a.id=ba.author_id " +
 		"WHERE ba.book_id IN (" + placeholders + ") ORDER BY a.full_name"
-	if err := s.collectStrings(ctx, aq, ids, idx, items, func(i int, v string) { items[i].Authors = append(items[i].Authors, v) }); err != nil {
+	if err := s.collectRefs(ctx, aq, ids, idx, items, func(i int, id int64, v string) {
+		items[i].Authors = append(items[i].Authors, AuthorRef{ID: id, Name: v})
+	}); err != nil {
 		return err
 	}
 	// Жанры.
-	gq := "SELECT bg.book_id, g.code FROM book_genres bg JOIN genres g ON g.id=bg.genre_id " +
+	gq := "SELECT bg.book_id, g.id, g.code FROM book_genres bg JOIN genres g ON g.id=bg.genre_id " +
 		"WHERE bg.book_id IN (" + placeholders + ") ORDER BY g.code"
-	if err := s.collectStrings(ctx, gq, ids, idx, items, func(i int, v string) { items[i].Genres = append(items[i].Genres, v) }); err != nil {
+	if err := s.collectRefs(ctx, gq, ids, idx, items, func(i int, id int64, v string) {
+		items[i].Genres = append(items[i].Genres, GenreRef{ID: id, Code: v})
+	}); err != nil {
 		return err
 	}
 	// Серии (+номер книги в серии).
-	sq := "SELECT bs.book_id, se.title, bs.seq_no FROM book_series bs JOIN series se ON se.id=bs.series_id " +
+	sq := "SELECT bs.book_id, se.id, se.title, bs.seq_no FROM book_series bs JOIN series se ON se.id=bs.series_id " +
 		"WHERE bs.book_id IN (" + placeholders + ") ORDER BY se.title"
 	rows, err := s.db.QueryContext(ctx, sq, ids...)
 	if err != nil {
@@ -174,35 +196,35 @@ func (s *DBStore) fillBookRelations(ctx context.Context, items []LibraryBook) er
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var bookID, seq int64
+		var bookID, seriesID, seq int64
 		var title string
-		if err := rows.Scan(&bookID, &title, &seq); err != nil {
+		if err := rows.Scan(&bookID, &seriesID, &title, &seq); err != nil {
 			return err
 		}
 		if i, ok := idx[bookID]; ok {
-			items[i].Series = append(items[i].Series, title)
-			items[i].SeqNo = append(items[i].SeqNo, int(seq))
+			items[i].Series = append(items[i].Series, SeriesRef{ID: seriesID, Title: title, Seq: int(seq)})
 		}
 	}
 	return rows.Err()
 }
 
-// collectStrings выполняет запрос (id, value) и раскладывает значения по книгам.
-func (s *DBStore) collectStrings(ctx context.Context, q string, ids []any, idx map[int64]int,
-	items []LibraryBook, add func(int, string)) error {
+// collectRefs выполняет запрос (book_id, ref_id, value) и раскладывает ссылки
+// по книгам через add. Используется для авторов и жанров.
+func (s *DBStore) collectRefs(ctx context.Context, q string, ids []any, idx map[int64]int,
+	items []LibraryBook, add func(int, int64, string)) error {
 	rows, err := s.db.QueryContext(ctx, q, ids...)
 	if err != nil {
 		return fmt.Errorf("store: book relations: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var bookID int64
+		var bookID, refID int64
 		var v string
-		if err := rows.Scan(&bookID, &v); err != nil {
+		if err := rows.Scan(&bookID, &refID, &v); err != nil {
 			return err
 		}
 		if i, ok := idx[bookID]; ok {
-			add(i, v)
+			add(i, refID, v)
 		}
 	}
 	return rows.Err()

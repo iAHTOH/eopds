@@ -257,6 +257,8 @@
     "login.title": "Вход",
     "login.username": "Логин",
     "login.password": "Пароль",
+    "login.show_password": "Показать пароль",
+    "login.hide_password": "Скрыть пароль",
     "login.submit": "Войти",
     "login.err.credentials": "Неверный логин или пароль.",
     "login.err.internal": "Внутренняя ошибка. Проверьте журнал сервера.",

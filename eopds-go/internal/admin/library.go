@@ -205,10 +205,14 @@ func (s *Server) handleLibrarySuggest(w http.ResponseWriter, r *http.Request) {
 		Items []suggestItem `json:"items"`
 	}{Items: make([]suggestItem, 0, len(books))}
 	for _, b := range books {
+		names := make([]string, 0, len(b.Authors))
+		for _, a := range b.Authors {
+			names = append(names, a.Name)
+		}
 		out.Items = append(out.Items, suggestItem{
 			ID:         b.ID,
 			Title:      b.Title,
-			Authors:    b.Authors,
+			Authors:    names,
 			Annotation: trimText(b.Annotation, 240),
 			Format:     b.Format,
 		})

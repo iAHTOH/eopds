@@ -37,11 +37,10 @@
           <td>
             <p class="book-main">
               <a class="book-title" href="/library/book/{{.ID}}"><b>{{.Title}}</b></a>
-              <span class="badge">{{.Format}}</span>
             </p>
-            {{if .Authors}}<p class="muted small">{{T "lib.field_authors"}}: {{range $i, $a := .Authors}}{{if $i}}, {{end}}{{$a}}{{end}}</p>{{end}}
-            {{if .Genres}}<p class="muted small">{{T "lib.field_genres"}}: {{range $i, $g := .Genres}}{{if $i}}, {{end}}{{$g}}{{end}}</p>{{end}}
-            {{if .Series}}<p class="muted small">{{T "lib.field_series"}}: {{range $i, $s := .Series}}{{if $i}}, {{end}}{{$s}}{{end}}</p>{{end}}
+            {{if .Authors}}<p class="muted small">{{T "lib.field_authors"}}: {{range $i, $a := .Authors}}{{if $i}}, {{end}}<a href="/library/books?author={{$a.ID}}">{{$a.Name}}</a>{{end}}</p>{{end}}
+            {{if .Genres}}<p class="muted small">{{T "lib.field_genres"}}: {{range $i, $g := .Genres}}{{if $i}}, {{end}}<a href="/library/books?genre={{$g.ID}}">{{$g.Code}}</a>{{end}}</p>{{end}}
+            {{if .Series}}<p class="muted small">{{T "lib.field_series"}}: {{range $i, $s := .Series}}{{if $i}}, {{end}}<a href="/library/books?series={{$s.ID}}">{{$s.Title}}</a>{{end}}</p>{{end}}
             <p class="muted small">{{T "lib.field_size"}}: {{kb .SizeBytes}} {{T "lib.kb"}}{{if .DocDate}} &middot; {{T "lib.field_date"}}: {{.DocDate}}{{end}}</p>
             {{if .Annotation}}<div class="annotation small">{{trim .Annotation 400}}</div>{{end}}
           </td>

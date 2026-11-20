@@ -201,9 +201,9 @@
           <img src="/library/book/{{.ID}}/cover" alt="" width="80" loading="lazy" onerror="this.onerror=null;this.src='/static/img/eopds_nocover.webp'">
         </a>
         <div class="random-body">
-          <p class="random-title"><a href="/library/book/{{.ID}}">{{.Title}}</a> <span class="label">{{.Format}}</span></p>
-          {{if .Authors}}<p class="muted small">{{T "lib.field_authors"}}: {{range $i, $a := .Authors}}{{if $i}}, {{end}}{{$a}}{{end}}</p>{{end}}
-          {{if .Genres}}<p class="muted small">{{T "lib.field_genres"}}: {{range $i, $g := .Genres}}{{if $i}}, {{end}}{{$g}}{{end}}</p>{{end}}
+          <p class="random-title"><a href="/library/book/{{.ID}}">{{.Title}}</a></p>
+          {{if .Authors}}<p class="muted small">{{T "lib.field_authors"}}: {{range $i, $a := .Authors}}{{if $i}}, {{end}}<a href="/library/books?author={{$a.ID}}">{{$a.Name}}</a>{{end}}</p>{{end}}
+          {{if .Genres}}<p class="muted small">{{T "lib.field_genres"}}: {{range $i, $g := .Genres}}{{if $i}}, {{end}}<a href="/library/books?genre={{$g.ID}}">{{$g.Code}}</a>{{end}}</p>{{end}}
           {{if .Annotation}}<p class="random-annot">{{trim .Annotation 400}}</p>{{end}}
         </div>
       </div>
