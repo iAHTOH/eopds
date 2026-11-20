@@ -308,6 +308,28 @@ select:focus {
   border-color: rgba(89, 184, 94, .35);
 }
 
+.alert-info {
+  color: #7fb2ce;
+  background: rgba(89, 140, 184, .10);
+  border-color: rgba(89, 140, 184, .35);
+}
+
+/* Статистика идущего сканирования (плашка прогресса). */
+.scan-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 6px;
+  font-size: 14px;
+}
+.scan-stats b { font-variant-numeric: tabular-nums; }
+
+/* Кнопка в состоянии «идёт» — визуально неактивна. */
+.btn.is-busy, .btn-primary.is-busy {
+  opacity: .6;
+  cursor: progress;
+}
+
 /* Поле пароля с кнопкой-«глазиком» показа/скрытия */
 .pw-wrap {
   position: relative;

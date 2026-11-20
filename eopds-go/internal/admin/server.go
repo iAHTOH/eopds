@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
@@ -36,7 +35,7 @@ type Server struct {
 	pages map[string]*template.Template
 	i18n  *i18n.Bundle
 
-	scanning atomic.Bool // защита от одновременного запуска сканирования
+	scan *scanState // состояние единственного фонового сканирования
 }
 
 // New создаёт сервер и строит наборы шаблонов.
@@ -45,7 +44,7 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle}
+	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle, scan: newScanState()}
 	pageFiles := map[string]string{
 		"install":         "templates/install.html",
 		"home":            "templates/home.html",
@@ -116,6 +115,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library/suggest", s.requireAuth(s.handleLibrarySuggest))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
+	mux.HandleFunc("GET /scan/status", s.requireAuth(s.handleScanStatus))
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))
 	mux.HandleFunc("POST /settings/scan-dirs", s.requireAuth(s.requireRole("admin", s.handleSaveScanPaths)))
 	mux.HandleFunc("POST /settings/clear-library", s.requireAuth(s.requireRole("admin", s.handleClearLibrary)))
@@ -329,6 +329,13 @@ func (s *Server) handleSection(nav string) http.HandlerFunc {
 		}
 		data := s.baseData(r)
 		data["Nav"] = nav
+		if nav == "scan" {
+			if st := s.getStore(); st != nil {
+				if paths, err := loadScanPaths(r.Context(), st); err == nil {
+					data["ScanPaths"] = paths
+				}
+			}
+		}
 		if nav == "settings" {
 			st := s.getStore()
 			if st != nil {

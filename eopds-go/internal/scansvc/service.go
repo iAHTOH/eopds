@@ -29,6 +29,19 @@ type Options struct {
 	Zip     bool
 	Exts    []string
 	Logger  *logx.Logger
+
+	// OnProgress вызывается после обработки каждой книги (для UI-счётчика).
+	OnProgress func(Progress)
+}
+
+// Progress — снимок прогресса сканирования (для отображения в UI).
+type Progress struct {
+	Found    int64
+	Parsed   int64
+	Created  int64
+	Updated  int64
+	Errors   int64
+	Archives int64
 }
 
 // Result — итог сканирования.
@@ -43,8 +56,12 @@ type Result struct {
 	Elapsed      time.Duration // общая длительность
 }
 
+// maxLoggedImportErrors — сколько первых ошибок импорта писать в лог.
+const maxLoggedImportErrors = 20
+
 // Run сканирует каталоги roots и пишет результат в БД.
 // Возвращает статистику; ошибка — только если не удалось настроить поток.
+// Отмена ctx останавливает цикл без «ложных» ошибок импорта.
 func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 	res := Result{Roots: opts.Roots, StartedAt: time.Now()}
 	if len(opts.Roots) == 0 {
@@ -55,6 +72,23 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 	var wg sync.WaitGroup
 	var importErr error
 	var mu sync.Mutex
+	logged := 0
+
+	emitProgress := func() {
+		if opts.OnProgress == nil {
+			return
+		}
+		mu.Lock()
+		p := Progress{
+			Found:   res.BooksFound,
+			Parsed:  res.BooksParsed,
+			Created: res.BooksCreated,
+			Updated: res.BooksUpdated,
+			Errors:  res.ImportErrors,
+		}
+		mu.Unlock()
+		opts.OnProgress(p)
+	}
 
 	// Читатель: построчно разбирает JSON и импортирует книги.
 	wg.Add(1)
@@ -66,7 +100,8 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 			if len(line) > 0 {
 				var rec meta.Record
 				if jerr := json.Unmarshal(bytes.TrimRight(line, "\r\n"), &rec); jerr == nil {
-					handleRecord(ctx, st, rec, &res, &mu, &importErr)
+					handleRecord(ctx, st, rec, &res, &mu, &importErr, opts.Logger, &logged)
+					emitProgress()
 				}
 			}
 			if err != nil {
@@ -107,8 +142,11 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 	wg.Wait()
 
 	// Убрать каталоги, пропавшие с диска (без книг и без детей).
-	if _, err := st.PruneCatalogs(ctx); err != nil {
-		opts.Logger.Warnf("scansvc", "prune catalogs: %v", err)
+	// Только если скан не был прерван — иначе prune удалит «ещё не дойденные».
+	if ctx.Err() == nil {
+		if _, err := st.PruneCatalogs(ctx); err != nil {
+			opts.Logger.Warnf("scansvc", "prune catalogs: %v", err)
+		}
 	}
 
 	res.Elapsed = time.Since(res.StartedAt)
@@ -119,7 +157,7 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 }
 
 // handleRecord обрабатывает одну запись сканера.
-func handleRecord(ctx context.Context, st store.Store, rec meta.Record, res *Result, mu *sync.Mutex, importErr *error) {
+func handleRecord(ctx context.Context, st store.Store, rec meta.Record, res *Result, mu *sync.Mutex, importErr *error, log *logx.Logger, logged *int) {
 	switch rec.Kind {
 	case meta.KindBook:
 		mu.Lock()
@@ -150,7 +188,16 @@ func handleRecord(ctx context.Context, st store.Store, rec meta.Record, res *Res
 		})
 		mu.Lock()
 		if err != nil {
+			// Отмена контекста — не ошибка импорта, а штатная остановка.
+			if ctx.Err() != nil {
+				mu.Unlock()
+				return
+			}
 			res.ImportErrors++
+			if log != nil && *logged < maxLoggedImportErrors {
+				*logged++
+				log.Warnf("scansvc", "import error %q: %v", rec.BookPath+"/"+rec.Filename, err)
+			}
 		} else {
 			res.BooksParsed++
 			if imported.Created {

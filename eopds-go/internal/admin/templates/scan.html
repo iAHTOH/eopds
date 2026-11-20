@@ -5,6 +5,20 @@
     <p class="muted">{{T "scan.subtitle"}}</p>
   </header>
 
+  <!-- Плашка прогресса фонового сканирования (управляется через /scan/status). -->
+  <div id="scan-progress" class="alert alert-info" role="status" hidden>
+    <strong id="sp-title">Сканирование идёт…</strong>
+    <span id="sp-dots"></span>
+    <div class="scan-stats">
+      <span>{{T "scan.found"}}: <b id="sp-found">0</b></span>
+      <span>{{T "scan.created"}}: <b id="sp-created">0</b></span>
+      <span>{{T "scan.updated"}}: <b id="sp-updated">0</b></span>
+      <span>{{T "scan.errors"}}: <b id="sp-errors">0</b></span>
+      <span class="muted">⏱ <b id="sp-elapsed">0</b></span>
+    </div>
+    <p class="small muted" style="margin:.4rem 0 0">Процесс идёт в фоне — можно закрыть страницу, сканирование продолжится.</p>
+  </div>
+
   {{if eq .ScanStatus "done"}}
   <div class="alert alert-ok" role="status">
     {{T "scan.done"}}: {{T "scan.found"}} {{.Found}} ({{T "scan.created"}} {{.Created}}, {{T "scan.updated"}} {{.Updated}}), {{T "scan.parsed"}} {{.Parsed}}{{if .Errors}}, {{T "scan.errors"}} {{.Errors}}{{end}}.
@@ -28,12 +42,63 @@
   {{end}}
 
   {{if .IsAdmin}}
-  <form method="post" action="/scan/run" class="scan-run">
-    <button type="submit" class="btn-primary btn-inline">{{T "scan.run"}}</button>
+  <form method="post" action="/scan/run" class="scan-run" id="scan-form">
+    <button type="submit" class="btn-primary btn-inline" id="scan-btn">{{T "scan.run"}}</button>
     <a class="muted" href="/settings#scan">{{T "scan.edit_paths"}}</a>
   </form>
 
   <p class="muted small">{{T "scan.note"}}</p>
   {{end}}
 </div>
+
+<script>
+(function () {
+  var box = document.getElementById('scan-progress');
+  var btn = document.getElementById('scan-btn');
+  if (!box) return;
+  var startedAt = 0, pollTimer = null;
+
+  function fmt(ms) {
+    var s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    if (h) return h + ' ч ' + m + ' мин ' + sec + ' с';
+    if (m) return m + ' мин ' + sec + ' с';
+    return sec + ' с';
+  }
+  function set(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+
+  function render(st) {
+    if (st.running) {
+      box.hidden = false;
+      if (!startedAt) startedAt = Date.parse(st.started_at || '') || Date.now();
+      set('sp-found', st.found || 0);
+      set('sp-created', st.created || 0);
+      set('sp-updated', st.updated || 0);
+      set('sp-errors', st.errors || 0);
+      set('sp-elapsed', fmt(Date.now() - startedAt));
+      if (btn) { btn.disabled = true; btn.classList.add('is-busy'); }
+      set('sp-dots', '.'.repeat((Math.floor((Date.now() - startedAt) / 700) % 3) + 1));
+    } else {
+      box.hidden = true;
+      if (btn) { btn.disabled = false; btn.classList.remove('is-busy'); }
+      if (startedAt) {
+        // Скан завершился — обновим страницу, чтобы показать итог.
+        startedAt = 0;
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        location.reload();
+      }
+    }
+  }
+
+  function poll() {
+    fetch('/scan/status', {credentials: 'same-origin', headers: {'Accept': 'application/json'}})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (st) { if (st) render(st); })
+      .catch(function () {});
+  }
+
+  // Первичный опрос + периодический, пока идёт.
+  pollTimer = setInterval(poll, 2000);
+  poll();
+})();
+</script>
 {{end}}
