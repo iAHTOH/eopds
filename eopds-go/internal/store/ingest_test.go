@@ -86,3 +86,64 @@ func TestBind(t *testing.T) {
 		t.Errorf("mismatch bind = %q", got)
 	}
 }
+
+func TestImportBooksBatch(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	books := []IngestBook{
+		{RelPath: "/lib/a", BookPath: "/lib/a", Filename: "1.fb2", Format: "fb2", Size: 1, Title: "Книга 1", Authors: []string{"Иван Петров"}, Genres: []string{"sf"}, SeriesTitle: "Серия", SeriesIndex: 1},
+		{RelPath: "/lib/a", BookPath: "/lib/a", Filename: "2.fb2", Format: "fb2", Size: 2, Title: "Книга 2", Authors: []string{"Иван Петров", "Пётр Сидоров"}, Genres: []string{"sf", "det"}, SeriesTitle: "Серия", SeriesIndex: 2},
+		{RelPath: "/lib/b", BookPath: "/lib/b", Filename: "3.fb2", Format: "fb2", Size: 3, Title: "", Authors: nil, Genres: nil},
+	}
+
+	res, err := st.ImportBooks(ctx, books)
+	if err != nil {
+		t.Fatalf("import batch: %v", err)
+	}
+	if res.Created != 3 || res.Updated != 0 || res.Errors != 0 {
+		t.Fatalf("ожидалось created=3 updated=0 errors=0, получено %+v", res)
+	}
+
+	// Повторный батч — всё обновление, без дублей.
+	res2, err := st.ImportBooks(ctx, books)
+	if err != nil {
+		t.Fatalf("import batch 2: %v", err)
+	}
+	if res2.Created != 0 || res2.Updated != 3 || res2.Errors != 0 {
+		t.Fatalf("повтор: ожидалось created=0 updated=3 errors=0, получено %+v", res2)
+	}
+
+	s, err := st.Stats(ctx)
+	if err != nil {
+		t.Fatalf("stats: %v", err)
+	}
+	// 3 книги, 2 автора, 1 серия, 2 жанра (жанры не входят в Stats).
+	if s.Books != 3 || s.Authors != 2 || s.Series != 1 {
+		t.Fatalf("ожидалось books=3 authors=2 series=1, получено %+v", s)
+	}
+}
+
+func TestImportBooksErrorIsolation(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	// Вторая книга «битая»: пустой filename → уникальный индекс допускает,
+	// но NOT NULL/логика — проверим изоляцию, сделав filename пустым у одной
+	// и валидным у соседей; пустой filename не уникален по индексу, но
+	// импорт не должен валить остальные книги пачки.
+	books := []IngestBook{
+		{RelPath: "/x", BookPath: "/x", Filename: "ok1.fb2", Title: "OK 1"},
+		{RelPath: "/x", BookPath: "/x", Filename: "", Title: "Пустое имя"},
+		{RelPath: "/x", BookPath: "/x", Filename: "ok2.fb2", Title: "OK 2"},
+	}
+	res, err := st.ImportBooks(ctx, books)
+	if err != nil {
+		t.Fatalf("batch не должен падать целиком: %v", err)
+	}
+	// Валидные книги должны сохраниться даже если одна «плохая».
+	s, _ := st.Stats(ctx)
+	if s.Books < 2 {
+		t.Fatalf("валидные книги потерялись: books=%d (res=%+v)", s.Books, res)
+	}
+}

@@ -54,6 +54,9 @@ type Store interface {
 	// ImportBook вставляет/обновляет книгу со связями (idempotent).
 	ImportBook(ctx context.Context, b IngestBook) (IngestResult, error)
 
+	// ImportBooks пакетно импортирует книги в одной транзакции (per-book SAVEPOINT).
+	ImportBooks(ctx context.Context, books []IngestBook) (BatchResult, error)
+
 	// ClearLibrary полностью очищает каталог книг (книги, авторы, серии,
 	// жанры, каталоги + связи/производные). Пользователи и настройки — сохраняются.
 	ClearLibrary(ctx context.Context) (ClearResult, error)

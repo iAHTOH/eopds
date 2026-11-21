@@ -32,95 +32,33 @@ type IngestResult struct {
 	Created bool // true — книга добавлена, false — обновлена существующая
 }
 
-// ImportBook вставляет/обновляет книгу и связанные сущности в одной транзакции.
-// Уникальность книги — по (path, filename). Авторы — по full_name, серии — по title,
-// жанры — по code. Повторный импорт той же книги обновляет запись (idempotent).
+// ImportBook вставляет/обновляет одну книгу со связями (idempotent).
+// Тонкая обёртка над ImportBooks: одна книга = пачка из одного элемента.
+// Уникальность книги — по (path, filename). Авторы — по full_name, серии —
+// по title, жанры — по code. Повторный импорт обновляет запись (idempotent).
 func (s *DBStore) ImportBook(ctx context.Context, b IngestBook) (IngestResult, error) {
+	// Для одиночной книги вам нужен её BookID — поэтому выполняем в своей
+	// транзакции и достаём id. ImportBooks возвращает только агрегаты.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return IngestResult{}, fmt.Errorf("store: import tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	cache := newIngestCache()
+	created, err := s.importBookCore(ctx, tx, cache, b)
+	if err != nil {
+		return IngestResult{}, err
+	}
 	path := b.BookPath
 	if path == "" {
 		path = b.RelPath
 	}
-	title := strings.TrimSpace(b.Title)
-	if title == "" {
-		title = b.Filename
+	var bookID int64
+	selQ := fmt.Sprintf("SELECT id FROM books WHERE path = %s AND filename = %s", s.ph(1), s.ph(2))
+	if err := tx.QueryRowContext(ctx, selQ, path, b.Filename).Scan(&bookID); err != nil {
+		return IngestResult{}, fmt.Errorf("store: lookup imported book: %w", err)
 	}
-	searchTitle := strings.ToLower(title)
-
-	// Каталог книги: иерархия от корня до непосредственного контейнера
-	// (папка или zip). books.catalog_id = id контейнера.
-	catalogID, err := s.ensureCatalogTree(ctx, tx, path, b.CatalogType)
-	if err != nil {
-		return IngestResult{}, err
-	}
-
-	// UPSERT книги по (path, filename).
-	bookID, created, err := s.upsertBook(ctx, tx, catalogID, b, path, title, searchTitle)
-	if err != nil {
-		return IngestResult{}, err
-	}
-
-	// Авторы.
-	for _, name := range b.Authors {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
-		authorID, err := s.selectOrInsert(ctx, tx,
-			"INSERT INTO authors (full_name, search_full_name) VALUES (%s, %s) RETURNING id",
-			"SELECT id FROM authors WHERE full_name = %s",
-			name, name, strings.ToLower(name))
-		if err != nil {
-			return IngestResult{}, fmt.Errorf("store: upsert author: %w", err)
-		}
-		if err := s.link(ctx, tx,
-			"INSERT INTO book_authors (book_id, author_id) VALUES (%s, %s)",
-			bookID, authorID); err != nil {
-			return IngestResult{}, err
-		}
-	}
-
-	// Серия.
-	if st := strings.TrimSpace(b.SeriesTitle); st != "" {
-		seriesID, err := s.selectOrInsert(ctx, tx,
-			"INSERT INTO series (title, search_title) VALUES (%s, %s) RETURNING id",
-			"SELECT id FROM series WHERE title = %s",
-			st, st, strings.ToLower(st))
-		if err != nil {
-			return IngestResult{}, fmt.Errorf("store: upsert series: %w", err)
-		}
-		if err := s.link(ctx, tx,
-			"INSERT INTO book_series (book_id, series_id, seq_no) VALUES (%s, %s, %s)",
-			bookID, seriesID, int64(b.SeriesIndex)); err != nil {
-			return IngestResult{}, err
-		}
-	}
-
-	// Жанры.
-	for _, code := range b.Genres {
-		code = strings.TrimSpace(code)
-		if code == "" {
-			continue
-		}
-		genreID, err := s.selectOrInsert(ctx, tx,
-			"INSERT INTO genres (code) VALUES (%s) RETURNING id",
-			"SELECT id FROM genres WHERE code = %s",
-			code, code)
-		if err != nil {
-			return IngestResult{}, fmt.Errorf("store: upsert genre: %w", err)
-		}
-		if err := s.link(ctx, tx,
-			"INSERT INTO book_genres (book_id, genre_id) VALUES (%s, %s)",
-			bookID, genreID); err != nil {
-			return IngestResult{}, err
-		}
-	}
-
 	if err := tx.Commit(); err != nil {
 		return IngestResult{}, fmt.Errorf("store: commit book: %w", err)
 	}

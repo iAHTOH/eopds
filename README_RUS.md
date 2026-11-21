@@ -1,6 +1,6 @@
 # Easy OPDS — домашняя OPDS-библиотека
 
-**Version 0.48.0** | [English](README.md)
+**Version 0.49.0** | [English](README.md)
 
 ![Скриншот](Screenshot.webp)
 
