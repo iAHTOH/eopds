@@ -45,6 +45,12 @@ type Options struct {
 	Debug   bool     // подробные логи
 	Logger  *logx.Logger
 	Emitter *emit.Emitter
+
+	// Known — отпечатки ранее прочитанных файлов/архивов (path -> size+mtime).
+	// Если nil — инкрементальность выключена (полный скан).
+	Known map[string]meta.Fingerprint
+	// FullRescan — игнорировать Known и перечитать всё (например, принудительно).
+	FullRescan bool
 }
 
 // job — задача для воркера.
@@ -55,6 +61,8 @@ type job struct {
 	name    string // имя файла (для БД)
 	format  string // расширение без точки
 	size    int64
+	relPath string // полный путь относительно Root (для отпечатка)
+	mtime   int64  // unix-время модификации (наносекунды)
 }
 
 const (
@@ -69,6 +77,7 @@ type Stats struct {
 	archivesSeen int64
 	badBooks     int64
 	badArchives  int64
+	skipped      int64 // пропущено как неизменившиеся
 }
 
 // Run выполняет сканирование. Возвращает итоговую статистику.
@@ -124,10 +133,12 @@ func Run(opts Options) {
 		BadArchives:  atomic.LoadInt64(&stats.badArchives),
 		ElapsedMS:    float64(elapsed.Milliseconds()),
 		Workers:      opts.Workers,
+		Skipped:      atomic.LoadInt64(&stats.skipped),
 	})
-	log.Infof("walk", "scan done: found=%d parsed=%d archives=%d bad=%d/%d elapsed=%s",
+	log.Infof("walk", "scan done: found=%d parsed=%d skipped=%d archives=%d bad=%d/%d elapsed=%s",
 		atomic.LoadInt64(&stats.booksFound),
 		atomic.LoadInt64(&stats.booksParsed),
+		atomic.LoadInt64(&stats.skipped),
 		atomic.LoadInt64(&stats.archivesSeen),
 		atomic.LoadInt64(&stats.badBooks),
 		atomic.LoadInt64(&stats.badArchives),
@@ -162,12 +173,19 @@ func produce(opts Options, jobs chan<- job, log *logx.Logger, stats *Stats, extS
 				log.Warnf("walk", "stat error %s: %v", path, ierr)
 				return nil
 			}
+			relPath := normalizeRel(relDir, name)
+			if unchanged(opts, relPath, info) {
+				atomic.AddInt64(&stats.skipped, 1)
+				return nil
+			}
 			jobs <- job{
 				kind:    jobZip,
 				absPath: path,
 				relDir:  relDir,
 				name:    name,
 				size:    info.Size(),
+				relPath: relPath,
+				mtime:   info.ModTime().UnixNano(),
 			}
 			return nil
 		}
@@ -180,6 +198,11 @@ func produce(opts Options, jobs chan<- job, log *logx.Logger, stats *Stats, extS
 			log.Warnf("walk", "stat error %s: %v", path, ierr)
 			return nil
 		}
+		relPath := normalizeRel(relDir, name)
+		if unchanged(opts, relPath, info) {
+			atomic.AddInt64(&stats.skipped, 1)
+			return nil
+		}
 		jobs <- job{
 			kind:    jobFile,
 			absPath: path,
@@ -187,6 +210,8 @@ func produce(opts Options, jobs chan<- job, log *logx.Logger, stats *Stats, extS
 			name:    name,
 			format:  strings.TrimPrefix(ext, "."),
 			size:    info.Size(),
+			relPath: relPath,
+			mtime:   info.ModTime().UnixNano(),
 		}
 		return nil
 	})
@@ -235,6 +260,7 @@ func emitFileBook(j job, opts Options, em *emit.Emitter, log *logx.Logger, stats
 		Filename:    name,
 		Format:      format,
 		Size:        size,
+		MTime:       j.mtime,
 		Title:       data.Title,
 		Lang:        data.Lang,
 		DocDate:     data.DocDate,
@@ -322,7 +348,28 @@ func processZip(j job, opts Options, em *emit.Emitter, log *logx.Logger, stats *
 		})
 	}
 
-	em.Write(meta.Record{Kind: meta.KindArchiveEnd, ArchivePath: archiveRel})
+	em.Write(meta.Record{Kind: meta.KindArchiveEnd, ArchivePath: archiveRel, Size: j.size, MTime: j.mtime})
+}
+
+// normalizeRel строит путь файла относительно корня: relDir/name без "./".
+func normalizeRel(relDir, name string) string {
+	if relDir == "." || relDir == "" {
+		return name
+	}
+	return relDir + "/" + name
+}
+
+// unchanged сообщает, что файл уже читался и не изменился (size+mtime совпали).
+// При FullRescan или при отсутствии Known всегда возвращает false.
+func unchanged(opts Options, relPath string, info os.FileInfo) bool {
+	if opts.FullRescan || opts.Known == nil {
+		return false
+	}
+	fp, ok := opts.Known[relPath]
+	if !ok {
+		return false
+	}
+	return fp.Size == info.Size() && fp.MTime == info.ModTime().UnixNano()
 }
 
 // parseBookFile открывает файл и парсит по формату.

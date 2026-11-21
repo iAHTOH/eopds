@@ -35,6 +35,9 @@ type Options struct {
 
 	// BatchSize — размер пачки книг для пакетной записи в БД (0 = 500).
 	BatchSize int
+
+	// FullRescan — игнорировать отпечатки и перечитать всё (принудит. скан).
+	FullRescan bool
 }
 
 // Progress — снимок прогресса сканирования (для отображения в UI).
@@ -45,6 +48,7 @@ type Progress struct {
 	Updated  int64
 	Errors   int64
 	Archives int64
+	Skipped  int64 // пропущено как неизменившиеся
 }
 
 // Result — итог сканирования.
@@ -55,6 +59,7 @@ type Result struct {
 	BooksCreated int64
 	BooksUpdated int64
 	ImportErrors int64
+	Skipped      int64         // файлов/архивов пропущено как неизменившиеся
 	StartedAt    time.Time     // когда началось сканирование
 	Elapsed      time.Duration // общая длительность
 }
@@ -92,11 +97,20 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 
 	// импортёр пишет накопленную пачку и обновляет статистику.
 	// Возвращает false, если импорт прерван отменой ctx.
-	flush := func(batch []store.IngestBook) bool {
+	flush := func(batch []store.IngestBook, fps map[string]store.FileFingerprint) bool {
 		if len(batch) == 0 {
 			return true
 		}
 		br, err := st.ImportBooks(ctx, batch)
+
+		// Сохранить отпечатки успешно импортированных файлов, чтобы следующий
+		// скан их пропустил (вне блокировки UI-счётчиков).
+		if err == nil && len(fps) > 0 {
+			if serr := st.SaveScanFiles(ctx, fps); serr != nil && opts.Logger != nil {
+				opts.Logger.Warnf("scansvc", "save scan files: %v", serr)
+			}
+		}
+
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
@@ -129,6 +143,7 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 			Created: res.BooksCreated,
 			Updated: res.BooksUpdated,
 			Errors:  res.ImportErrors,
+			Skipped: res.Skipped,
 		}
 		mu.Unlock()
 		opts.OnProgress(p)
@@ -142,6 +157,7 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 		defer wg.Done()
 		r := bufio.NewReaderSize(pr, 256*1024)
 		batch := make([]store.IngestBook, 0, batchSize)
+		fps := make(map[string]store.FileFingerprint, batchSize)
 		for {
 			line, err := r.ReadBytes('\n')
 			if len(line) > 0 {
@@ -153,13 +169,26 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 						res.BooksFound++
 						mu.Unlock()
 						batch = append(batch, ingestFromRecord(rec))
+						// Отпечаток отдельного файла (архивы учтём на KindArchiveEnd).
+						if rec.CatalogType != 1 && rec.MTime != 0 {
+							if key := fileFingerprintKey(rec); key != "" {
+								fps[key] = store.FileFingerprint{Size: rec.Size, MTime: rec.MTime}
+							}
+						}
 						if len(batch) >= batchSize {
-							if !flush(batch) {
+							if !flush(batch, fps) {
 								_ = pr.Close()
 								return
 							}
 							batch = batch[:0]
+							fps = make(map[string]store.FileFingerprint, batchSize)
 							emitProgress()
+						}
+					case meta.KindArchiveEnd:
+						// Отпечаток архива: если size+mtime не изменятся,
+						// следующий скан пропустит весь zip целиком.
+						if rec.ArchivePath != "" && rec.MTime != 0 {
+							fps[rec.ArchivePath] = store.FileFingerprint{Size: rec.Size, MTime: rec.MTime}
 						}
 					case meta.KindError:
 						mu.Lock()
@@ -172,8 +201,11 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 						}
 					case meta.KindStats:
 						// Итоговая статистика walk — только для логов; наши
-						// счётчики (BooksFound/Parsed/Created/...) уже точны и
-						// основаны на реальном импорте, поэтому не перезаписываем.
+						// счётчики импорта уже точны. Берём лишь число
+						// пропущенных (неизменившихся) файлов для отчёта.
+						mu.Lock()
+						res.Skipped = rec.Skipped
+						mu.Unlock()
 					}
 				}
 			}
@@ -182,10 +214,23 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 			}
 		}
 		// Остаток пачки.
-		flush(batch)
+		flush(batch, fps)
 		emitProgress()
 		_ = pr.Close()
 	}()
+
+	// Отпечатки уже прочитанных файлов для инкрементального скана.
+	var known map[string]meta.Fingerprint
+	if !opts.FullRescan {
+		if sf, err := st.ScanFiles(ctx); err == nil {
+			known = make(map[string]meta.Fingerprint, len(sf))
+			for k, v := range sf {
+				known[k] = meta.Fingerprint{Size: v.Size, MTime: v.MTime}
+			}
+		} else if opts.Logger != nil {
+			opts.Logger.Warnf("scansvc", "load scan files (full rescan): %v", err)
+		}
+	}
 
 	// Писатель: сканер шлёт записи в pipe.
 	for _, root := range opts.Roots {
@@ -194,12 +239,14 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 		}
 		em := emit.New(pw)
 		rootOpts := walk.Options{
-			Root:    root,
-			Workers: opts.Workers,
-			Zip:     opts.Zip,
-			Exts:    opts.Exts,
-			Logger:  opts.Logger,
-			Emitter: em,
+			Root:       root,
+			Workers:    opts.Workers,
+			Zip:        opts.Zip,
+			Exts:       opts.Exts,
+			Logger:     opts.Logger,
+			Emitter:    em,
+			Known:      known,
+			FullRescan: opts.FullRescan,
 		}
 		func() {
 			defer func() { _ = em.Flush() }()
@@ -256,4 +303,17 @@ func ingestFromRecord(rec meta.Record) store.IngestBook {
 		SeriesTitle: seriesTitle,
 		SeriesIndex: seriesIndex,
 	}
+}
+
+// fileFingerprintKey возвращает ключ отпечатка отдельного файла-книги:
+// RelPath + "/" + Filename (полный путь относительно корня скана).
+// Пустая строка — если ключ не определить.
+func fileFingerprintKey(rec meta.Record) string {
+	if rec.RelPath == "" || rec.RelPath == "." {
+		return rec.Filename
+	}
+	if rec.Filename == "" {
+		return rec.RelPath
+	}
+	return rec.RelPath + "/" + rec.Filename
 }

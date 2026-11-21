@@ -25,6 +25,13 @@ const (
 	KindStats RecordKind = "stats"
 )
 
+// Fingerprint — отпечаток файла для инкрементального скана.
+// Size — размер в байтах, MTime — unix-время модификации в наносекундах.
+type Fingerprint struct {
+	Size  int64 `json:"size"`
+	MTime int64 `json:"mtime"`
+}
+
 // Series — информация о серии (если книга входит в серию).
 type Series struct {
 	Title string `json:"title,omitempty"`
@@ -61,6 +68,8 @@ type Record struct {
 	Filename string `json:"filename,omitempty"`
 	Format   string `json:"format,omitempty"`
 	Size     int64  `json:"size,omitempty"`
+	// MTime — unix-время модификации файла/архива в наносекундах (инкрем. скан).
+	MTime int64 `json:"mtime,omitempty"`
 
 	Title      string `json:"title,omitempty"`
 	Lang       string `json:"lang,omitempty"`
@@ -90,4 +99,6 @@ type Record struct {
 	BadArchives  int64   `json:"bad_archives,omitempty"`
 	ElapsedMS    float64 `json:"elapsed_ms,omitempty"`
 	Workers      int     `json:"workers,omitempty"`
+	// Skipped — сколько файлов/архивов пропущено как неизменившиеся.
+	Skipped int64 `json:"skipped,omitempty"`
 }

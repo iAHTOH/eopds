@@ -14,6 +14,7 @@
       <span>{{T "scan.created"}}: <b id="sp-created">0</b></span>
       <span>{{T "scan.updated"}}: <b id="sp-updated">0</b></span>
       <span>{{T "scan.errors"}}: <b id="sp-errors">0</b></span>
+      <span>{{T "scan.skipped"}}: <b id="sp-skipped">0</b></span>
       <span class="muted">⏱ <b id="sp-elapsed">0</b></span>
     </div>
     <p class="small muted" style="margin:.4rem 0 0">Процесс идёт в фоне — можно закрыть страницу, сканирование продолжится.</p>
@@ -21,7 +22,7 @@
 
   {{if eq .ScanStatus "done"}}
   <div class="alert alert-ok" role="status">
-    {{T "scan.done"}}: {{T "scan.found"}} {{.Found}} ({{T "scan.created"}} {{.Created}}, {{T "scan.updated"}} {{.Updated}}), {{T "scan.parsed"}} {{.Parsed}}{{if .Errors}}, {{T "scan.errors"}} {{.Errors}}{{end}}.
+    {{T "scan.done"}}: {{T "scan.found"}} {{.Found}} ({{T "scan.created"}} {{.Created}}, {{T "scan.updated"}} {{.Updated}}), {{T "scan.parsed"}} {{.Parsed}}{{if .Errors}}, {{T "scan.errors"}} {{.Errors}}{{end}}{{if .Skipped}}, {{T "scan.skipped"}} {{.Skipped}}{{end}}.
     <br><span class="small muted">{{T "dash.scan_start"}}: {{.StartedAt}} · {{T "dash.scan_duration"}}: {{.Elapsed}}</span>
   </div>
   {{else if eq .ScanStatus "no_paths"}}
@@ -44,6 +45,9 @@
   {{if .IsAdmin}}
   <form method="post" action="/scan/run" class="scan-run" id="scan-form">
     <button type="submit" class="btn-primary btn-inline" id="scan-btn">{{T "scan.run"}}</button>
+    <label class="small muted" style="display:inline-flex;align-items:center;gap:.35rem;margin-left:.5rem">
+      <input type="checkbox" name="full" value="1"> {{T "scan.full"}}
+    </label>
     <a class="muted" href="/settings#scan">{{T "scan.edit_paths"}}</a>
   </form>
 
@@ -74,6 +78,7 @@
       set('sp-created', st.created || 0);
       set('sp-updated', st.updated || 0);
       set('sp-errors', st.errors || 0);
+      set('sp-skipped', st.skipped || 0);
       set('sp-elapsed', fmt(Date.now() - startedAt));
       if (btn) { btn.disabled = true; btn.classList.add('is-busy'); }
       set('sp-dots', '.'.repeat((Math.floor((Date.now() - startedAt) / 700) % 3) + 1));

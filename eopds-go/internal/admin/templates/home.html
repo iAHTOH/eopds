@@ -31,7 +31,7 @@
       <span>{{.LastScanDur}}</span>
     </div>
     <div class="last-scan-line small muted">
-      {{T "scan.found"}} {{.LastScan.Found}} · {{T "scan.created"}} {{.LastScan.Created}} · {{T "scan.updated"}} {{.LastScan.Updated}}{{if .LastScan.ImportErrors}} · {{T "scan.errors"}} {{.LastScan.ImportErrors}}{{end}}
+      {{T "scan.found"}} {{.LastScan.Found}} · {{T "scan.created"}} {{.LastScan.Created}} · {{T "scan.updated"}} {{.LastScan.Updated}}{{if .LastScan.Skipped}} · {{T "scan.skipped"}} {{.LastScan.Skipped}}{{end}}{{if .LastScan.ImportErrors}} · {{T "scan.errors"}} {{.LastScan.ImportErrors}}{{end}}
     </div>
   </div>
   {{end}}

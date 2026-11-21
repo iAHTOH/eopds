@@ -37,6 +37,7 @@ func (s *DBStore) ClearLibrary(ctx context.Context) (ClearResult, error) {
 		"book_authors",
 		"book_genres",
 		"book_series",
+		"scan_files",
 	}
 	for _, t := range tables {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+t); err != nil {

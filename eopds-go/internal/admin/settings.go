@@ -25,6 +25,7 @@ type ScanSummary struct {
 	Created      int64  `json:"created"`       // добавлено
 	Updated      int64  `json:"updated"`       // обновлено
 	ImportErrors int64  `json:"import_errors"` // ошибок импорта
+	Skipped      int64  `json:"skipped"`       // пропущено (неизменившиеся)
 }
 
 // loadScanSummary возвращает итог последнего сканирования.

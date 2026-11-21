@@ -15,6 +15,9 @@ var defaultScanExts = []string{".fb2", ".fb2.zip"}
 // Скан не привязан к HTTP-запросу: браузер можно закрыть, скан продолжит
 // работу (может длиться часы). Прогресс отдаётся через GET /scan/status.
 func (s *Server) handleScanRun(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	fullRescan := r.PostFormValue("full") == "1"
+
 	st := s.getStore()
 	if st == nil {
 		http.Redirect(w, r, "/scan", http.StatusSeeOther)
@@ -48,8 +51,8 @@ func (s *Server) handleScanRun(w http.ResponseWriter, r *http.Request) {
 	if u := currentUser(r); u != nil {
 		uid = u.ID
 	}
-	s.log.Info("сканирование запущено (фон)", "roots", roots, "user", uid)
-	go s.runScanBg(roots, uid)
+	s.log.Info("сканирование запущено (фон)", "roots", roots, "user", uid, "full_rescan", fullRescan)
+	go s.runScanBg(roots, uid, fullRescan)
 
 	http.Redirect(w, r, "/scan", http.StatusSeeOther)
 }
@@ -67,21 +70,4 @@ func formatDuration(d time.Duration) string {
 		return strconv.Itoa(m) + " мин " + strconv.Itoa(sec) + " с"
 	}
 	return strconv.Itoa(sec) + " с"
-}
-
-// renderScanPage рендерит /scan с сообщением статуса.
-func (s *Server) renderScanPage(w http.ResponseWriter, r *http.Request, status string, extra map[string]any) {
-	data := s.baseData(r)
-	data["Nav"] = "scan"
-	data["ScanStatus"] = status
-	for k, v := range extra {
-		data[k] = v
-	}
-	// Текущие каталоги для показа.
-	if st := s.getStore(); st != nil {
-		if paths, err := loadScanPaths(r.Context(), st); err == nil {
-			data["ScanPaths"] = paths
-		}
-	}
-	s.render(w, r, "scan", data)
 }

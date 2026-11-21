@@ -21,6 +21,7 @@ type ScanStateSnapshot struct {
 	Created    int64  `json:"created"`
 	Updated    int64  `json:"updated"`
 	Errors     int64  `json:"errors"`
+	Skipped    int64  `json:"skipped"`
 	HasRun     bool   `json:"has_run"` // было ли хотя бы одно сканирование
 	LastError  string `json:"last_error,omitempty"`
 }
@@ -82,6 +83,7 @@ func (st *scanState) snapshot() ScanStateSnapshot {
 		Running:   st.running,
 		Found:     st.progress.Found,
 		Parsed:    st.progress.Parsed,
+		Skipped:   st.progress.Skipped,
 		Created:   st.progress.Created,
 		Updated:   st.progress.Updated,
 		Errors:    st.progress.Errors,
@@ -104,7 +106,7 @@ func (s *Server) handleScanStatus(w http.ResponseWriter, r *http.Request) {
 
 // runScanBg выполняет сканирование в фоне. Контекст — фоновый (не запроса),
 // чтобы скан не обрывался при закрытии браузера.
-func (s *Server) runScanBg(roots []string, uid int64) {
+func (s *Server) runScanBg(roots []string, uid int64, fullRescan bool) {
 	// scan.begin уже вызван в handleScanRun
 	st := s.getStore()
 	if st == nil {
@@ -114,11 +116,12 @@ func (s *Server) runScanBg(roots []string, uid int64) {
 	ctx := context.Background()
 
 	res, err := scansvc.Run(ctx, st, scansvc.Options{
-		Roots:   roots,
-		Workers: 0,
-		Zip:     true,
-		Exts:    defaultScanExts,
-		Logger:  logx.New(logx.LevelInfo),
+		Roots:      roots,
+		Workers:    0,
+		Zip:        true,
+		Exts:       defaultScanExts,
+		Logger:     logx.New(logx.LevelInfo),
+		FullRescan: fullRescan,
 		OnProgress: func(p scansvc.Progress) {
 			s.scan.setProgress(p)
 		},
@@ -129,7 +132,7 @@ func (s *Server) runScanBg(roots []string, uid int64) {
 	s.scan.finish(err)
 	s.log.Info("сканирование завершено (фон)",
 		"found", res.BooksFound, "created", res.BooksCreated, "updated", res.BooksUpdated,
-		"errors", res.ImportErrors, "elapsed", res.Elapsed.String())
+		"skipped", res.Skipped, "errors", res.ImportErrors, "elapsed", res.Elapsed.String())
 
 	// Сохраняем итог для дашборда (scan.last).
 	summary := ScanSummary{
@@ -139,6 +142,7 @@ func (s *Server) runScanBg(roots []string, uid int64) {
 		Created:      res.BooksCreated,
 		Updated:      res.BooksUpdated,
 		ImportErrors: res.ImportErrors,
+		Skipped:      res.Skipped,
 	}
 	if enc, jerr := json.Marshal(summary); jerr == nil {
 		if serr := st.SetSetting(ctx, scanLastKey, string(enc), uid); serr != nil {

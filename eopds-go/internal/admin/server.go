@@ -334,6 +334,20 @@ func (s *Server) handleSection(nav string) http.HandlerFunc {
 				if paths, err := loadScanPaths(r.Context(), st); err == nil {
 					data["ScanPaths"] = paths
 				}
+				// Итог последнего скана (для блока результата после перезагрузки).
+				if sum, ok := loadScanSummary(r.Context(), st); ok {
+					data["ScanStatus"] = "done"
+					data["Found"] = sum.Found
+					data["Created"] = sum.Created
+					data["Updated"] = sum.Updated
+					data["Parsed"] = sum.Found - sum.ImportErrors
+					data["Errors"] = sum.ImportErrors
+					data["Skipped"] = sum.Skipped
+					if t, terr := time.Parse(time.RFC3339, sum.StartedAt); terr == nil {
+						data["StartedAt"] = t.Local().Format("02.01.2006 15:04:05")
+					}
+					data["Elapsed"] = formatDuration(time.Duration(sum.ElapsedMS) * time.Millisecond)
+				}
 			}
 		}
 		if nav == "settings" {

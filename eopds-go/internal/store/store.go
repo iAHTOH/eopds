@@ -62,6 +62,13 @@ type Store interface {
 	ClearLibrary(ctx context.Context) (ClearResult, error)
 	// PruneCatalogs удаляет пустые каталоги (без книг и детей); возвращает число.
 	PruneCatalogs(ctx context.Context) (int64, error)
+
+	// ScanFiles возвращает отпечатки (size,mtime) прочитанных файлов/архивов.
+	ScanFiles(ctx context.Context) (map[string]FileFingerprint, error)
+	// SaveScanFiles сохраняет отпечатки пачки файлов (upsert по path).
+	SaveScanFiles(ctx context.Context, files map[string]FileFingerprint) error
+	// ClearScanFiles удаляет все отпечатки (при очистке библиотеки).
+	ClearScanFiles(ctx context.Context) error
 	// Каталоги.
 	ListRootCatalogs(ctx context.Context) ([]Catalog, error)
 	GetCatalog(ctx context.Context, id int64) (Catalog, error)
