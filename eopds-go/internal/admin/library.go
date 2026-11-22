@@ -627,13 +627,15 @@ func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 		}
 		ver := "3.0"
 		ext := ".epub"
+		kobo := false
 		if fmtParam == "epub2" {
 			ver = "2.0"
 		}
 		if fmtParam == "kepub" {
 			ext = ".kepub.epub"
+			kobo = true
 		}
-		data, err := bookToEPUB(r.Context(), st, book, ver)
+		data, err := bookToEPUB(r.Context(), st, book, ver, kobo)
 		if err != nil {
 			s.log.Error("library: epub build", "id", id, "err", err)
 			http.Error(w, "epub error", http.StatusInternalServerError)

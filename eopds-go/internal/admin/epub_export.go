@@ -14,7 +14,7 @@ import (
 // bookToEPUB собирает EPUB (2.0/3.0) из книги: читает исходный FB2, рендерит
 // тело через fb2render (с выносом картинок в файлы) и упаковывает в EPUB.
 // Возвращает ZIP-байты.
-func bookToEPUB(ctx context.Context, st store.Store, book store.LibraryBook, version string) ([]byte, error) {
+func bookToEPUB(ctx context.Context, st store.Store, book store.LibraryBook, version string, kobo bool) ([]byte, error) {
 	src, err := st.BookFile(ctx, book.ID)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func bookToEPUB(ctx context.Context, st store.Store, book store.LibraryBook, ver
 		TOC:        toc,
 		Images:     images,
 	}
-	return epub.Build(b, epub.Options{Version: version})
+	return epub.Build(b, epub.Options{Version: version, Kobo: kobo})
 }
 
 // bookTitle — название книги (или имя файла без расширения).

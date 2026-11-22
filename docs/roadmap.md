@@ -142,8 +142,8 @@
 - [x] **EPUB 3** — конвертер из `internal/fb2render` (XHTML + OPF + NAV + ZIP).
       `?fmt=epub|epub3` в download, acquisition-ссылка в OPDS. См. [go/epub.md](go/epub.md).
 - [x] **EPUB 2** — тот же контейнер, `version="2.0"` в OPF + NCX. Флаг `?fmt=epub2`.
-- [~] **Kobo EPUB (kepub)** — отдаётся EPUB3-контейнер с расширением `.kepub.epub`
-      (`?fmt=kepub`). `koboSpan`-разметка (пагинация Kobo) — ещё не сделана.
+- [x] **Kobo EPUB (kepub)** — EPUB3 + `koboSpan`-разметка, `kobo.js`/`kobo.css`,
+      расширение `.kepub.epub` (`?fmt=kepub`). См. [go/epub.md](go/epub.md).
 - [ ] **TXT / Markdown (md)** — тривиально из отрендеренного HTML; опционально (позже).
 - [x] **AZW8 / KFX / PDF — НЕ делаем.** KFX — закрытый формат Amazon
       (технически/легально воспроизвести нельзя), AZW8/KF8 — тяжёлый и нишевый,

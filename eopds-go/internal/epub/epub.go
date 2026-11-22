@@ -49,6 +49,9 @@ type Book struct {
 type Options struct {
 	// Version: "3.0" (по умолчанию) или "2.0".
 	Version string
+	// Kobo включает Kobo-разметку (kepub): koboSpan в тексте, kobo.js/kobo.css
+	// и правки OPF. Применяется только для EPUB3.
+	Kobo bool
 }
 
 const nsXHTML = "http://www.w3.org/1999/xhtml"
@@ -94,12 +97,19 @@ func Build(b Book, opt Options) ([]byte, error) {
 	files["OEBPS/nav.xhtml"] = []byte(navXHTML(b, lang))
 	files["OEBPS/toc.ncx"] = []byte(ncx(b, version, modified))
 
-	// Контент.
-	files["OEBPS/content.xhtml"] = []byte(contentXHTML(b, lang))
+	// Контент. В режиме Kobo — koboSpan-разметка и доп. ресурсы.
+	bodyHTML := b.BodyHTML
+	kobo := opt.Kobo && version != "2.0"
+	if kobo {
+		bodyHTML = applyKoboSpans(bodyHTML)
+		files["OEBPS/kobo.js"] = []byte(koboJS)
+		files["OEBPS/kobo.css"] = []byte(koboCSS)
+	}
+	files["OEBPS/content.xhtml"] = []byte(contentXHTML(b, lang, kobo, bodyHTML))
 	files["OEBPS/style.css"] = []byte(defaultCSS)
 
 	// OPF.
-	files["OEBPS/content.opf"] = []byte(opf(b, lang, version, modified, imgTypes))
+	files["OEBPS/content.opf"] = []byte(opf(b, lang, version, modified, imgTypes, kobo))
 
 	for name, data := range files {
 		if err := writeDeflated(zw, name, data); err != nil {
@@ -142,7 +152,7 @@ func containerXML() string {
 `
 }
 
-func contentXHTML(b Book, lang string) string {
+func contentXHTML(b Book, lang string, kobo bool, bodyHTML string) string {
 	var sb strings.Builder
 	sb.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -151,12 +161,22 @@ func contentXHTML(b Book, lang string) string {
   <meta charset="utf-8"/>
   <title>` + html.EscapeString(b.Title) + `</title>
   <link rel="stylesheet" type="text/css" href="style.css"/>
-</head>
+` + koboHeadLinks(kobo) + `</head>
 <body>
 `)
-	sb.WriteString(b.BodyHTML)
+	sb.WriteString(bodyHTML)
 	sb.WriteString("\n</body>\n</html>\n")
 	return sb.String()
+}
+
+// koboHeadLinks возвращает теги <link>/<script> для kepub в <head>.
+func koboHeadLinks(kobo bool) string {
+	if !kobo {
+		return ""
+	}
+	return `  <link rel="stylesheet" type="text/css" href="kobo.css"/>
+  <script src="kobo.js"></script>
+`
 }
 
 func navXHTML(b Book, lang string) string {
@@ -221,7 +241,7 @@ func ncx(b Book, version string, modified time.Time) string {
 	return sb.String()
 }
 
-func opf(b Book, lang, version string, modified time.Time, imgTypes map[string]string) string {
+func opf(b Book, lang, version string, modified time.Time, imgTypes map[string]string, kobo bool) string {
 	var meta strings.Builder
 	if version == "2.0" {
 		// EPUB 2: обязателен cover/NCX; spine toc.
@@ -233,6 +253,10 @@ func opf(b Book, lang, version string, modified time.Time, imgTypes map[string]s
 	manifest.WriteString(`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>` + "\n")
 	manifest.WriteString(`    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>` + "\n")
 	manifest.WriteString(`    <item id="css" href="style.css" media-type="text/css"/>` + "\n")
+	if kobo {
+		manifest.WriteString(`    <item id="kobo-css" href="kobo.css" media-type="text/css"/>` + "\n")
+		manifest.WriteString(`    <item id="kobo-js" href="kobo.js" media-type="application/javascript"/>` + "\n")
+	}
 	i := 0
 	for href, mt := range imgTypes {
 		i++
