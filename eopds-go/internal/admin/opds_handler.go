@@ -94,14 +94,22 @@ func bookEntry(b store.LibraryBook) opds.Entry {
 		Type:  mimeForFormat(b.Format),
 		Title: strings.ToUpper(b.Format),
 	})
-	// ZIP для fb2.
+	// ZIP и EPUB для fb2.
 	if strings.EqualFold(b.Format, "fb2") {
-		e.Links = append(e.Links, opds.Link{
-			Rel:   opds.RelAcquisition,
-			Href:  base + "?fmt=fb2%2Bzip",
-			Type:  "application/zip",
-			Title: "FB2 (zip)",
-		})
+		e.Links = append(e.Links,
+			opds.Link{
+				Rel:   opds.RelAcquisition,
+				Href:  base + "?fmt=fb2%2Bzip",
+				Type:  "application/zip",
+				Title: "FB2 (zip)",
+			},
+			opds.Link{
+				Rel:   opds.RelAcquisition,
+				Href:  base + "?fmt=epub",
+				Type:  "application/epub+zip",
+				Title: "EPUB",
+			},
+		)
 	}
 	for _, c := range b.Genres {
 		e.Categories = append(e.Categories, opds.Category{Term: c.Code, Label: c.Code})

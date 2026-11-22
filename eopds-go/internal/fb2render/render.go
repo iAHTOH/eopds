@@ -35,12 +35,24 @@ type TOCItem struct {
 	Level int
 }
 
+// Image — встроенная в FB2 картинка (для выноса в файлы, например в EPUB).
+type Image struct {
+	// ID — идентификатор <binary> без '#' (на него ссылается <image href>).
+	ID string
+	// MediaType — MIME-тип (image/jpeg, image/png, ...).
+	MediaType string
+	// Data — декодированные байты изображения.
+	Data []byte
+}
+
 // Result — результат рендера тела книги.
 type Result struct {
 	// HTML — тело книги в виде HTML-фрагмента (без <html>/<body>).
 	HTML string
 	// TOC — оглавление (в порядке следования).
 	TOC []TOCItem
+	// Images — встроенные картинки (в порядке <binary>).
+	Images []Image
 }
 
 // Options управляют рендером.
@@ -279,7 +291,36 @@ func (d *doc) render(opt Options) (Result, error) {
 		r.renderNotes(d.notes)
 	}
 
-	return Result{HTML: sb.String(), TOC: toc}, nil
+	// Изображения: декодируем все <binary> (для выноса в файлы EPUB и т.п.).
+	var images []Image
+	for _, b := range d.binAll() {
+		raw, err := base64.StdEncoding.DecodeString(b.data)
+		if err != nil {
+			continue
+		}
+		mt := b.mediaType
+		if mt == "" {
+			mt = "image/jpeg"
+		}
+		images = append(images, Image{ID: b.id, MediaType: mt, Data: raw})
+	}
+
+	return Result{HTML: sb.String(), TOC: toc, Images: images}, nil
+}
+
+// binAll возвращает бинари в стабильном порядке (по id), чтобы результат
+// рендера был детерминированным.
+func (d *doc) binAll() []*binary {
+	ids := make([]string, 0, len(d.bin))
+	for id := range d.bin {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := make([]*binary, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, d.bin[id])
+	}
+	return out
 }
 
 // renderer — состояние одного прохода рендера.
@@ -402,7 +443,7 @@ func (r *renderer) renderTitle(n *node, level int) {
 	for _, c := range n.children() {
 		if c.name == "p" || c.name == "subtitle" {
 			if !first {
-				r.sb.WriteString("<br>")
+				r.sb.WriteString("<br/>")
 			}
 			r.writeInline(c)
 			first = false
@@ -493,7 +534,7 @@ func (r *renderer) renderImage(n *node) {
 	if src == "" {
 		return
 	}
-	r.sb.WriteString(`<img class="fb2-image" src="` + escapeAttr(src) + `" alt="" loading="lazy">`)
+	r.sb.WriteString(`<img class="fb2-image" src="` + escapeAttr(src) + `" alt="" loading="lazy"/>`)
 }
 
 // inlineTag возвращает имя HTML-тега для инлайн-элемента или "".

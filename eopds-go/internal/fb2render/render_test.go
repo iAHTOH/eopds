@@ -1,6 +1,7 @@
 package fb2render
 
 import (
+	"encoding/xml"
 	"fmt"
 	"strings"
 	"testing"
@@ -11,6 +12,12 @@ const fb2Template = `<?xml version="1.0" encoding="utf-8"?>
  <description><title-info><book-title>Книга</book-title></title-info></description>
  %s
 </FictionBook>`
+
+// xmlDecoderForTest оборачивает HTML-фрагмент в корневой элемент, чтобы
+// проверить его как well-formed XML.
+func xmlDecoderForTest(fragment string) *xml.Decoder {
+	return xml.NewDecoder(strings.NewReader("<root>" + fragment + "</root>"))
+}
 
 func renderBody(t *testing.T, body string, opt Options) Result {
 	t.Helper()
@@ -135,5 +142,29 @@ func TestRenderRejectsNonFB2(t *testing.T) {
 	_, err := Render(strings.NewReader(`<?xml version="1.0"?><html><body>x</body></html>`), Options{})
 	if err == nil {
 		t.Fatal("ожидалась ошибка ErrNotFB2")
+	}
+}
+
+// TestRenderXHTMLVoidElements — тело должно быть XHTML-совместимым (валидный
+// XML): void-элементы (<br/>, <img/>) самозакрываются, иначе EPUB отвергнет
+// content.xhtml. Заголовок из нескольких <p> даёт <br/>.
+func TestRenderXHTMLVoidElements(t *testing.T) {
+	res := renderBody(t, `<body><section><title><p>Строка 1</p><p>Строка 2</p></title><p>Текст</p></section></body>`, Options{})
+	if strings.Contains(res.HTML, "<br>") {
+		t.Fatalf("незакрытый <br>: %s", res.HTML)
+	}
+	if !strings.Contains(res.HTML, "<br/>") {
+		t.Fatalf("ожидался <br/> в заголовке: %s", res.HTML)
+	}
+	// Всё тело должно быть well-formed XML.
+	dec := xmlDecoderForTest(res.HTML)
+	for {
+		_, err := dec.Token()
+		if err != nil {
+			if strings.Contains(err.Error(), "EOF") {
+				break
+			}
+			t.Fatalf("тело не является well-formed XML: %v\n%s", err, res.HTML)
+		}
 	}
 }

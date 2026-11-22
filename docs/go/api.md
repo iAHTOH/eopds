@@ -13,7 +13,7 @@ read-only эндпоинты доступны без неё.
 | POST | `/install` | обработка формы установки; успех → `303` на `/` |
 | GET | `/healthz` | простой алиас `/api/health` |
 | GET | `/library/book/{id}/cover` | обложка книги (image/*, `200`/`404`), кэш `/config/covers` |
-| GET | `/library/book/{id}/download` | скачивание файла книги (`?fmt=`, только авторизованным) |
+| GET | `/library/book/{id}/download` | скачивание файла книги; `?fmt=epub\|epub3\|epub2\|kepub` — конвертация FB2→EPUB ([epub.md](epub.md)), `fb2+zip` — ZIP; только авторизованным |
 | GET | `/library/book/{id}/read` | страница онлайн-читалки FB2 ([reader.md](reader.md)) |
 | GET | `/library/book/{id}/html` | тело книги, отрендеренное в HTML-фрагмент ([reader.md](reader.md)) |
 | POST | `/library/book/{id}/progress` | сохранение позиции чтения, `204` ([reader.md](reader.md)) |

@@ -546,8 +546,9 @@ func buildPagination(path string, r *http.Request, page, pages int) Pagination {
 
 // handleBookDownload отдаёт файл книги авторизованному пользователю.
 // GET /library/book/{id}/download?fmt=<fmt> — поток файла (с диска или из ZIP)
-// как вложение. fmt: пусто/"<исходный>" — как есть; "fb2+zip" — упаковать в ZIP;
-// прочие форматы (конвертация) пока возвращают 404 (конвертер не подключён).
+// как вложение. fmt: пусто/"<исходный>" — как есть; "fb2+zip" — ZIP;
+// "epub"/"epub3"/"epub2"/"kepub" — конвертация FB2->EPUB (см. roadmap);
+// прочие форматы (azw8/kfx/pdf/txt/md) пока 404 (конвертер не подключён).
 func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 	st := s.getStore()
 	if st == nil {
@@ -617,6 +618,31 @@ func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", itoa64(int64(buf.Len())))
 		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(base+".zip"))
 		_, _ = w.Write(buf.Bytes())
+	case "epub", "epub3", "epub2", "kepub":
+		// Конвертация в EPUB из FB2. Версия: epub2 -> 2.0, прочее -> 3.0.
+		// (Kobo читает EPUB3; koboSpan-разметка — отдельная задача.)
+		if !strings.EqualFold(book.Format, "fb2") {
+			http.NotFound(w, r)
+			return
+		}
+		ver := "3.0"
+		ext := ".epub"
+		if fmtParam == "epub2" {
+			ver = "2.0"
+		}
+		if fmtParam == "kepub" {
+			ext = ".kepub.epub"
+		}
+		data, err := bookToEPUB(r.Context(), st, book, ver)
+		if err != nil {
+			s.log.Error("library: epub build", "id", id, "err", err)
+			http.Error(w, "epub error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/epub+zip")
+		w.Header().Set("Content-Length", itoa64(int64(len(data))))
+		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(base+ext))
+		_, _ = w.Write(data)
 	default:
 		// Конвертация в другие форматы — не подключена (см. roadmap).
 		http.NotFound(w, r)
