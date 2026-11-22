@@ -173,3 +173,71 @@ func (s *DBStore) ReadingProgress(ctx context.Context, userID, bookID int64) (st
 	}
 	return pos, nil
 }
+
+// ShelfBooks возвращает книги на полке пользователя, последние добавленные
+// сверху (по added_at DESC, при равенстве — по book_id DESC), постранично.
+func (s *DBStore) ShelfBooks(ctx context.Context, userID int64, page, size int) (LibraryPage, error) {
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 50
+	}
+	if size > 500 {
+		size = 500
+	}
+	var total int64
+	if err := s.db.QueryRowContext(ctx,
+		s.bind("SELECT COUNT(*) FROM bookshelf WHERE user_id=%s", 1), userID).Scan(&total); err != nil {
+		return LibraryPage{}, fmt.Errorf("store: shelf count: %w", err)
+	}
+
+	offset := (page - 1) * size
+	q := "SELECT b.id, b.title, b.format, b.size_bytes, b.lang, b.docdate, b.annotation, b.path, b.filename " +
+		"FROM bookshelf s JOIN books b ON b.id = s.book_id WHERE s.user_id=" + s.ph(1) +
+		" ORDER BY s.added_at DESC, b.id DESC" +
+		" LIMIT " + s.ph(2) + " OFFSET " + s.ph(3)
+	rows, err := s.db.QueryContext(ctx, q, userID, size, offset)
+	if err != nil {
+		return LibraryPage{}, fmt.Errorf("store: shelf books: %w", err)
+	}
+	defer rows.Close()
+
+	var items []LibraryBook
+	for rows.Next() {
+		var b LibraryBook
+		if err := rows.Scan(&b.ID, &b.Title, &b.Format, &b.SizeBytes, &b.Lang,
+			&b.DocDate, &b.Annotation, &b.Path, &b.Filename); err != nil {
+			return LibraryPage{}, fmt.Errorf("store: shelf scan: %w", err)
+		}
+		items = append(items, b)
+	}
+	if err := rows.Err(); err != nil {
+		return LibraryPage{}, err
+	}
+	if err := s.fillBookRelations(ctx, items); err != nil {
+		return LibraryPage{}, err
+	}
+
+	pages := int((total + int64(size) - 1) / int64(size))
+	return LibraryPage{Items: items, Total: total, Page: page, Size: size, Pages: pages}, nil
+}
+
+// RemoveFromShelf убирает книгу с полки пользователя (идемпотентно).
+func (s *DBStore) RemoveFromShelf(ctx context.Context, userID, bookID int64) error {
+	q := s.bind("DELETE FROM bookshelf WHERE user_id=%s AND book_id=%s", 2)
+	if _, err := s.db.ExecContext(ctx, q, userID, bookID); err != nil {
+		return fmt.Errorf("store: remove from shelf: %w", err)
+	}
+	return nil
+}
+
+// CountShelf возвращает число книг на полке пользователя (для бейджей/футера).
+func (s *DBStore) CountShelf(ctx context.Context, userID int64) (int64, error) {
+	var total int64
+	if err := s.db.QueryRowContext(ctx,
+		s.bind("SELECT COUNT(*) FROM bookshelf WHERE user_id=%s", 1), userID).Scan(&total); err != nil {
+		return 0, fmt.Errorf("store: count shelf: %w", err)
+	}
+	return total, nil
+}

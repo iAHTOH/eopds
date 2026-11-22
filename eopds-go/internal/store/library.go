@@ -590,3 +590,46 @@ func (s *DBStore) RecentBooks(ctx context.Context, limit int) ([]LibraryBook, er
 func (s *DBStore) dialectIsPG() bool {
 	return s.kind == config.DBPostgres
 }
+
+// LatestBooks возвращает книги, последние добавленные сверху (id DESC),
+// постранично. Используется блоком «Новые поступления».
+func (s *DBStore) LatestBooks(ctx context.Context, page, size int) (LibraryPage, error) {
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 50
+	}
+	if size > 500 {
+		size = 500
+	}
+	var total int64
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM books").Scan(&total); err != nil {
+		return LibraryPage{}, fmt.Errorf("store: latest books count: %w", err)
+	}
+	offset := (page - 1) * size
+	q := "SELECT id, title, format, size_bytes, lang, docdate, annotation, path, filename " +
+		"FROM books ORDER BY id DESC LIMIT " + s.ph(1) + " OFFSET " + s.ph(2)
+	rows, err := s.db.QueryContext(ctx, q, size, offset)
+	if err != nil {
+		return LibraryPage{}, fmt.Errorf("store: latest books: %w", err)
+	}
+	defer rows.Close()
+	var items []LibraryBook
+	for rows.Next() {
+		var b LibraryBook
+		if err := rows.Scan(&b.ID, &b.Title, &b.Format, &b.SizeBytes, &b.Lang,
+			&b.DocDate, &b.Annotation, &b.Path, &b.Filename); err != nil {
+			return LibraryPage{}, fmt.Errorf("store: latest scan: %w", err)
+		}
+		items = append(items, b)
+	}
+	if err := rows.Err(); err != nil {
+		return LibraryPage{}, err
+	}
+	if err := s.fillBookRelations(ctx, items); err != nil {
+		return LibraryPage{}, err
+	}
+	pages := int((total + int64(size) - 1) / int64(size))
+	return LibraryPage{Items: items, Total: total, Page: page, Size: size, Pages: pages}, nil
+}

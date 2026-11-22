@@ -117,6 +117,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /library/book/{id}/progress", s.requireAuth(s.handleBookProgress))
 	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
 	mux.HandleFunc("GET /library/suggest", s.requireAuth(s.handleLibrarySuggest))
+	mux.HandleFunc("GET /library/new", s.requireAuth(s.handleLibraryNew))
+	mux.HandleFunc("GET /library/shelf", s.requireAuth(s.handleLibraryShelf))
+	mux.HandleFunc("POST /library/shelf/{id}/remove", s.requireAuth(s.handleShelfRemove))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
 	mux.HandleFunc("GET /scan/status", s.requireAuth(s.handleScanStatus))
@@ -233,8 +236,15 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 		if rb, err := st.RandomBook(r.Context()); err == nil {
 			data["RandomBook"] = rb
 		}
-		if shelf, err := st.RecentBooks(r.Context(), 3); err == nil {
-			data["ShelfBooks"] = shelf
+		// Новые поступления (последние добавленные в библиотеку книги).
+		if nb, err := st.RecentBooks(r.Context(), 3); err == nil {
+			data["NewBooks"] = nb
+		}
+		// Книжная полка пользователя (последние добавленные на полку).
+		if user != nil {
+			if pg, err := st.ShelfBooks(r.Context(), user.ID, 1, 3); err == nil {
+				data["ShelfBooks"] = pg.Items
+			}
 		}
 	}
 	return data

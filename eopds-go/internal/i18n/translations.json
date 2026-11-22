@@ -168,7 +168,7 @@
     "home.intro1": "The world does not stand still. Much has been digitized — films, music and books are no exception. Of course, one wants to have a personal (local) copy, accessible from anywhere via the",
     "home.intro2": " protocol, which many e-readers understand.",
     "footer.random_book": "RANDOM BOOK",
-    "footer.shelf": "NEW ARRIVALS",
+    "footer.shelf": "BOOKSHELF",
     "lib.field_format": "Format",
     "settings.danger": "Danger zone",
     "settings.clear_library": "Clear library",
@@ -196,7 +196,13 @@
     "lib.read_back": "Back to book",
     "lib.read_loading": "Loading…",
     "lib.read_prev": "Previous page",
-    "lib.read_next": "Next page"
+    "lib.read_next": "Next page",
+    "footer.new_arrivals": "NEW ARRIVALS",
+    "footer.shelf_desc": "Books you have read or downloaded.",
+    "lib.shelf": "Bookshelf",
+    "lib.new_arrivals": "New arrivals",
+    "lib.shelf_remove": "Remove from shelf",
+    "lib.shelf_empty": "Your shelf is empty. Open a book (Read) or download it."
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -369,7 +375,7 @@
     "home.intro1": "Мир не стоит на месте. Теперь много что перевели в электронный вид: фильмы, музыку (даже сигареты :) ) и книги не стали исключением. Конечно же хочется иметь свою собственную (локальную) копию, доступную из любой точки по протоколу",
     "home.intro2": ", который понимают многие «читалки».",
     "footer.random_book": "СЛУЧАЙНАЯ КНИГА",
-    "footer.shelf": "НОВЫЕ ПОСТУПЛЕНИЯ",
+    "footer.shelf": "КНИЖНАЯ ПОЛКА",
     "lib.field_format": "Формат",
     "settings.danger": "Опасная зона",
     "settings.clear_library": "Очистить библиотеку",
@@ -397,6 +403,12 @@
     "lib.read_back": "К книге",
     "lib.read_loading": "Загрузка…",
     "lib.read_prev": "Предыдущая страница",
-    "lib.read_next": "Следующая страница"
+    "lib.read_next": "Следующая страница",
+    "footer.new_arrivals": "НОВЫЕ ПОСТУПЛЕНИЯ",
+    "footer.shelf_desc": "Книги, которые вы читали или скачивали.",
+    "lib.shelf": "Книжная полка",
+    "lib.new_arrivals": "Новые поступления",
+    "lib.shelf_remove": "Удалить с полки",
+    "lib.shelf_empty": "На полке пока пусто. Откройте книгу («Читать») или скачайте её."
   }
 }

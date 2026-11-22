@@ -1,6 +1,6 @@
 {{define "content"}}
 {{if .ShowList}}
-  {{if .Page.Items}}{{template "lib_book_list" .}}{{else}}<p class="muted">{{T "lib.empty"}}</p>{{end}}
+  {{if .Page.Items}}{{template "lib_book_list" .}}{{else}}<p class="muted">{{if .ShelfMode}}{{T "lib.shelf_empty"}}{{else}}{{T "lib.empty"}}{{end}}</p>{{end}}
 {{else}}
   {{template "lib_prefix_index" .}}
 {{end}}
@@ -42,6 +42,11 @@
             {{if .Series}}<p class="muted small">{{T "lib.field_series"}}: {{range $i, $s := .Series}}{{if $i}}, {{end}}<a href="/library/books?series={{$s.ID}}">{{$s.Title}}</a>{{if $s.Seq}} #{{$s.Seq}}{{end}}{{end}}</p>{{end}}
             <p class="muted small">{{T "lib.field_size"}}: {{kb .SizeBytes}} {{T "lib.kb"}}{{if .DocDate}} · {{T "lib.field_date"}}: {{.DocDate}}{{end}}</p>
             {{if .Annotation}}<div class="annotation small">{{trim .Annotation 400}}</div>{{end}}
+            {{if $.ShelfMode}}
+            <form method="post" action="/library/shelf/{{.ID}}/remove" class="shelf-remove-form">
+              <button type="submit" class="dl-link shelf-remove-btn">{{T "lib.shelf_remove"}}</button>
+            </form>
+            {{end}}
           </td>
         </tr>
       </table>

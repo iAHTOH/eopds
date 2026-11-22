@@ -27,6 +27,7 @@ func TestLibBookListRendersSeriesSeq(t *testing.T) {
 			Items []store.LibraryBook
 		}
 		Pagination Pagination
+		ShelfMode  bool
 	}{}
 	data.Page.Items = []store.LibraryBook{{
 		ID:        51967,

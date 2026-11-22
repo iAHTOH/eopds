@@ -84,6 +84,12 @@ type Store interface {
 	SaveReadingProgress(ctx context.Context, userID, bookID int64, position string) error
 	// ReadingProgress возвращает сохранённую позицию чтения ("" если нет).
 	ReadingProgress(ctx context.Context, userID, bookID int64) (string, error)
+	// ShelfBooks — книги на полке пользователя (последние сверху), постранично.
+	ShelfBooks(ctx context.Context, userID int64, page, size int) (LibraryPage, error)
+	// RemoveFromShelf убирает книгу с полки пользователя.
+	RemoveFromShelf(ctx context.Context, userID, bookID int64) error
+	// CountShelf — число книг на полке пользователя.
+	CountShelf(ctx context.Context, userID int64) (int64, error)
 
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error
@@ -112,6 +118,8 @@ type Store interface {
 	EntityName(ctx context.Context, kind string, id int64) (string, error)
 	RandomBook(ctx context.Context) (LibraryBook, error)
 	RecentBooks(ctx context.Context, limit int) ([]LibraryBook, error)
+	// LatestBooks — книги, последние добавленные сверху (id DESC), постранично.
+	LatestBooks(ctx context.Context, page, size int) (LibraryPage, error)
 	// PrefixIndex — префиксный алфавитный указатель (table,col,length,prefix,lang).
 	PrefixIndex(ctx context.Context, table, col string, length int, prefix string, lang int) ([]AlphabetItem, error)
 	// BookByPrefixIndex — указатель книг по префиксу.
