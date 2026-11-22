@@ -191,7 +191,12 @@
     "search.ph_author": "Search by author…",
     "search.ph_series": "Search by series…",
     "suggest.empty": "Nothing found",
-    "lib.download": "Download"
+    "lib.download": "Download",
+    "lib.read": "Read",
+    "lib.read_back": "Back to book",
+    "lib.read_loading": "Loading…",
+    "lib.read_prev": "Previous page",
+    "lib.read_next": "Next page"
   },
   "ru": {
     "app.name": "Easy OPDS",
@@ -387,6 +392,11 @@
     "search.ph_author": "Поиск по автору…",
     "search.ph_series": "Поиск по серии…",
     "suggest.empty": "Ничего не найдено",
-    "lib.download": "Скачать"
+    "lib.download": "Скачать",
+    "lib.read": "Читать",
+    "lib.read_back": "К книге",
+    "lib.read_loading": "Загрузка…",
+    "lib.read_prev": "Предыдущая страница",
+    "lib.read_next": "Следующая страница"
   }
 }

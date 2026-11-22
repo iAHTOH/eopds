@@ -131,3 +131,45 @@ func (s *DBStore) AddToShelf(ctx context.Context, userID, bookID int64) error {
 	}
 	return nil
 }
+
+// SaveReadingProgress сохраняет позицию чтения книги в онлайн-читалке
+// (в bookmarks.position) и обновляет время обращения на полке.
+// Позиция — произвольная строка, для читалки используется "percent:12.5".
+func (s *DBStore) SaveReadingProgress(ctx context.Context, userID, bookID int64, position string) error {
+	// На каждую книгу держим одну «якорную» закладку прогресса.
+	var bmID int64
+	err := s.db.QueryRowContext(ctx,
+		s.bind("SELECT id FROM bookmarks WHERE user_id=%s AND book_id=%s ORDER BY id LIMIT 1", 2),
+		userID, bookID).Scan(&bmID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("store: reading progress lookup: %w", err)
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		q := s.bind("INSERT INTO bookmarks (user_id, book_id, position) VALUES (%s, %s, %s)", 3)
+		if _, err := s.db.ExecContext(ctx, q, userID, bookID, position); err != nil {
+			return fmt.Errorf("store: reading progress insert: %w", err)
+		}
+	} else {
+		q := s.bind("UPDATE bookmarks SET position=%s WHERE id=%s", 2)
+		if _, err := s.db.ExecContext(ctx, q, position, bmID); err != nil {
+			return fmt.Errorf("store: reading progress update: %w", err)
+		}
+	}
+	return s.AddToShelf(ctx, userID, bookID)
+}
+
+// ReadingProgress возвращает сохранённую позицию чтения (bookmarks.position).
+// Если прогресса нет — пустая строка и nil.
+func (s *DBStore) ReadingProgress(ctx context.Context, userID, bookID int64) (string, error) {
+	var pos string
+	err := s.db.QueryRowContext(ctx,
+		s.bind("SELECT position FROM bookmarks WHERE user_id=%s AND book_id=%s ORDER BY id LIMIT 1", 2),
+		userID, bookID).Scan(&pos)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("store: reading progress: %w", err)
+	}
+	return pos, nil
+}

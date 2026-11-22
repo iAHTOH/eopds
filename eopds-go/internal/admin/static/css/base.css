@@ -1144,3 +1144,7 @@ select:focus {
   transition: color .12s, border-color .12s, background-color .12s;
 }
 .dl-link:hover { color: var(--accent); border-color: var(--accent); background: var(--hover-bg); }
+
+/* Кнопка «Читать»: стиль как у .dl-link, но шире; под строкой скачивания. */
+.read-row { margin: 6px 0 4px; }
+.dl-link.read-wide { min-width: 210px; text-align: center; }

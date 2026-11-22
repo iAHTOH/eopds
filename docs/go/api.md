@@ -14,6 +14,9 @@ read-only эндпоинты доступны без неё.
 | GET | `/healthz` | простой алиас `/api/health` |
 | GET | `/library/book/{id}/cover` | обложка книги (image/*, `200`/`404`), кэш `/config/covers` |
 | GET | `/library/book/{id}/download` | скачивание файла книги (`?fmt=`, только авторизованным) |
+| GET | `/library/book/{id}/read` | страница онлайн-читалки FB2 ([reader.md](reader.md)) |
+| GET | `/library/book/{id}/html` | тело книги, отрендеренное в HTML-фрагмент ([reader.md](reader.md)) |
+| POST | `/library/book/{id}/progress` | сохранение позиции чтения, `204` ([reader.md](reader.md)) |
 | POST | `/settings/clear-library` | очистка библиотеки (admin); `confirm=yes` → `303` |
 | GET | `/scan` | страница сканирования (форма запуска, каталоги, плашка прогресса) |
 | POST | `/scan/run` | запуск сканирования в фоне (admin); сразу `303` на `/scan`; `full=1` — полный перескан |

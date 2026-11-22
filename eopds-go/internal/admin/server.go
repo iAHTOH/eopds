@@ -55,6 +55,7 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		"library_series":  "templates/library_series.html",
 		"library_genres":  "templates/library_genres.html",
 		"library_book":    "templates/library_book.html",
+		"reader":          "templates/reader.html",
 		"scan":            "templates/scan.html",
 		"settings":        "templates/settings.html",
 		"login":           "templates/login.html",
@@ -111,6 +112,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library/book/{id}", s.requireAuth(s.handleLibraryBook))
 	mux.HandleFunc("GET /library/book/{id}/cover", s.requireAuth(s.handleBookCover))
 	mux.HandleFunc("GET /library/book/{id}/download", s.requireAuth(s.handleBookDownload))
+	mux.HandleFunc("GET /library/book/{id}/read", s.requireAuth(s.handleBookRead))
+	mux.HandleFunc("GET /library/book/{id}/html", s.requireAuth(s.handleBookHTML))
+	mux.HandleFunc("POST /library/book/{id}/progress", s.requireAuth(s.handleBookProgress))
 	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
 	mux.HandleFunc("GET /library/suggest", s.requireAuth(s.handleLibrarySuggest))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))

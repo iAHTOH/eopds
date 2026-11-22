@@ -1,0 +1,181 @@
+{{define "content"}}
+<style>
+  /* Цвета — из переменных темы (light/dark), без захардкоженных значений. */
+  .reader-toolbar{position:sticky;top:0;z-index:40;display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+    margin-bottom:16px;padding:10px 12px;background:var(--card);color:var(--text);
+    border:1px solid var(--border);border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  .reader-toolbar .spacer{flex:1}
+  .reader-toolbar .grp{display:flex;gap:6px;align-items:center}
+  .reader-toolbar button,.reader-toolbar a.btn{font:inherit;padding:5px 10px;cursor:pointer;
+    border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text)}
+  .reader-toolbar button:hover,.reader-toolbar a.btn:hover{border-color:var(--accent);color:var(--accent-hover)}
+  .reader-toolbar button:disabled{opacity:.4;cursor:default}
+  .reader-progress{font-size:.9em;color:var(--muted);min-width:90px;text-align:right;white-space:nowrap}
+
+  #reader-scroll{max-width:62em;margin:0 auto;overflow:hidden}
+  #reader-body{line-height:1.6;font-size:18px}
+  #reader-body .fb2-title{margin:1.4em 0 .6em;line-height:1.25}
+  #reader-body .fb2-subtitle{font-weight:600;margin:1.2em 0 .5em}
+  #reader-body .fb2-empty{height:.9em}
+  #reader-body .fb2-epigraph{font-style:italic;margin:1em 0 1em 2em;padding-left:1em;border-left:3px solid var(--border)}
+  #reader-body .fb2-cite{margin:1em 1.5em;padding-left:1em;border-left:3px solid var(--border)}
+  #reader-body .fb2-poem{margin:1em 0 1em 1em}
+  #reader-body .fb2-stanza{margin:.6em 0}
+  #reader-body .fb2-v{margin:.15em 0;padding-left:1.5em}
+  #reader-body .fb2-author,#reader-body .fb2-date{font-style:italic;text-align:right;color:var(--muted)}
+  #reader-body .fb2-image{max-width:100%;height:auto;display:block;margin:1em auto}
+  #reader-body .fb2-table{border-collapse:collapse;margin:1em auto}
+  #reader-body .fb2-table td,#reader-body .fb2-table th{border:1px solid var(--border);padding:4px 8px}
+  #reader-body .fb2-note-ref{color:var(--accent);text-decoration:none}
+  #reader-body .fb2-notes{margin-top:3em;border-top:1px solid var(--border);padding-top:1em;font-size:.92em}
+  #reader-body .fb2-note{margin:.6em 0}
+  .reader-loading{opacity:.6;font-style:italic}
+</style>
+
+<div class="reader-toolbar" id="reader-toolbar">
+  <a class="btn" href="/library/book/{{.Book.ID}}">&larr; {{T "lib.read_back"}}</a>
+  <a class="btn" href="/library/book/{{.Book.ID}}/download?fmt={{.Book.Format}}">{{T "lib.download"}}</a>
+  <span class="spacer"></span>
+  <div class="grp">
+    <button type="button" id="page-prev" title="{{T "lib.read_prev"}}">&#8249;</button>
+    <button type="button" id="page-next" title="{{T "lib.read_next"}}">&#8250;</button>
+  </div>
+  <div class="grp">
+    <button type="button" id="font-dec" title="A−">A−</button>
+    <button type="button" id="font-inc" title="A+">A+</button>
+  </div>
+  <span class="reader-progress" id="progress-label">0%</span>
+</div>
+
+<div id="reader-scroll">
+  <div id="reader-body" class="reader-loading" data-book-id="{{.Book.ID}}" data-start="{{printf "%.2f" .StartPercent}}">{{T "lib.read_loading"}}</div>
+</div>
+
+<script>
+(function(){
+  var scrollBox = document.getElementById('reader-scroll');
+  var body      = document.getElementById('reader-body');
+  var label     = document.getElementById('progress-label');
+  var btnPrev   = document.getElementById('page-prev');
+  var btnNext   = document.getElementById('page-next');
+  var toolbar   = document.getElementById('reader-toolbar');
+
+  var bookId = body.getAttribute('data-book-id');
+  var start  = parseFloat(body.getAttribute('data-start')) || 0;
+  var fontKey = 'reader:font:' + bookId;
+
+  var page = 1;          // текущая страница (1-based)
+  var pageCount = 1;     // всего страниц
+  var pageHeight = 0;    // высота страницы (пикс)
+
+  // --- Настройка размера шрифта ---
+  var fsz = parseInt(localStorage.getItem(fontKey) || '18', 10);
+  function applyFont(){ body.style.fontSize = fsz + 'px'; }
+
+  // --- Пагинация ---
+  function metrics(){
+    // Высота видимой страницы: окно минус шапка и отступы.
+    var top = toolbar.getBoundingClientRect();
+    var avail = window.innerHeight - toolbar.offsetHeight - 48;
+    pageHeight = Math.max(300, avail);
+    return pageHeight;
+  }
+  function recompute(){
+    metrics();
+    scrollBox.style.height = pageHeight + 'px';
+    var total = body.scrollHeight;
+    pageCount = Math.max(1, Math.ceil((total - 2) / pageHeight));
+    if (page > pageCount) page = pageCount;
+    scrollToPage(page, false);
+  }
+  function scrollToPage(p, animate){
+    page = Math.min(pageCount, Math.max(1, p));
+    var top = (page - 1) * pageHeight;
+    scrollBox.scrollTo({top: top, behavior: animate ? 'smooth' : 'auto'});
+    updateUI();
+    scheduleSave();
+  }
+  function updateUI(){
+    btnPrev.disabled = page <= 1;
+    btnNext.disabled = page >= pageCount;
+    var pct = pageCount <= 1 ? 100 : (page - 1) / (pageCount - 1) * 100;
+    label.textContent = pct.toFixed(0) + '% · ' + page + '/' + pageCount;
+  }
+  // Прогресс для сохранения: по номеру страницы.
+  function savePercent(){
+    var n = document.getElementById('reader-body');
+    if (pageCount <= 1) return 100;
+    return (page - 1) / (pageCount - 1) * 100;
+  }
+
+  // --- Загрузка HTML книги ---
+  fetch('/library/book/' + bookId + '/html', {credentials:'same-origin'})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+    .then(function(html){
+      body.innerHTML = html;
+      body.classList.remove('reader-loading');
+      applyFont();
+      recompute();
+      // Восстановить позицию по сохранённому проценту.
+      if (start > 0 && pageCount > 1) {
+        var p = Math.round(start / 100 * (pageCount - 1)) + 1;
+        scrollToPage(p, false);
+      }
+    })
+    .catch(function(e){ body.textContent = 'Ошибка загрузки: ' + e.message; });
+
+  // --- Кнопки ---
+  btnPrev.onclick = function(){ scrollToPage(page - 1, true); };
+  btnNext.onclick = function(){ scrollToPage(page + 1, true); };
+  document.getElementById('font-inc').onclick = function(){ fsz = Math.min(28, fsz + 1); localStorage.setItem(fontKey, fsz); applyFont(); recompute(); };
+  document.getElementById('font-dec').onclick = function(){ fsz = Math.max(12, fsz - 1); localStorage.setItem(fontKey, fsz); applyFont(); recompute(); };
+
+  // --- Колесо мыши: перелистывание страницами ---
+  var wheelLock = false;
+  scrollBox.addEventListener('wheel', function(e){
+    e.preventDefault();
+    if (wheelLock) return;
+    wheelLock = true;
+    setTimeout(function(){ wheelLock = false; }, 250);
+    if (e.deltaY > 0) scrollToPage(page + 1, true);
+    else if (e.deltaY < 0) scrollToPage(page - 1, true);
+  }, {passive:false});
+
+  // --- Клавиатура: стрелки, PageUp/PageDown, пробел ---
+  document.addEventListener('keydown', function(e){
+    if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault(); scrollToPage(page + 1, true);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault(); scrollToPage(page - 1, true);
+    } else if (e.key === 'Home') { e.preventDefault(); scrollToPage(1, true); }
+    else if (e.key === 'End') { e.preventDefault(); scrollToPage(pageCount, true); }
+  });
+
+  // --- Пересчёт при изменении окна ---
+  var resizeTimer = null;
+  window.addEventListener('resize', function(){
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(recompute, 200);
+  });
+
+  // --- Сохранение прогресса ---
+  var saveTimer = null;
+  function scheduleSave(){
+    if (saveTimer) return;
+    saveTimer = setTimeout(function(){
+      saveTimer = null;
+      var fd = new FormData();
+      fd.append('position', 'percent:' + savePercent().toFixed(2));
+      fetch('/library/book/' + bookId + '/progress', {method:'POST', body: fd, credentials:'same-origin'}).catch(function(){});
+    }, 1200);
+  }
+  window.addEventListener('beforeunload', function(){
+    if (!navigator.sendBeacon) return;
+    var fd = new FormData();
+    fd.append('position', 'percent:' + savePercent().toFixed(2));
+    navigator.sendBeacon('/library/book/' + bookId + '/progress', fd);
+  });
+})();
+</script>
+{{end}}

@@ -80,6 +80,10 @@ type Store interface {
 	BookFile(ctx context.Context, id int64) (BookSource, error)
 	// AddToShelf добавляет книгу на полку пользователя (обновляет last_read_at).
 	AddToShelf(ctx context.Context, userID, bookID int64) error
+	// SaveReadingProgress сохраняет позицию чтения в онлайн-читалке.
+	SaveReadingProgress(ctx context.Context, userID, bookID int64, position string) error
+	// ReadingProgress возвращает сохранённую позицию чтения ("" если нет).
+	ReadingProgress(ctx context.Context, userID, bookID int64) (string, error)
 
 	// SetSetting сохраняет системную настройку (key/value).
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error

@@ -22,6 +22,9 @@
           <a class="dl-link" href="/library/book/{{.Book.ID}}/download?fmt=fb2%2Bzip">fb2+zip</a>
           {{end}}
         </p>
+        {{if eq .Book.Format "fb2"}}
+        <p class="read-row"><a class="dl-link read-wide" href="/library/book/{{.Book.ID}}/read">{{T "lib.read"}}</a></p>
+        {{end}}
       </td>
     </tr>
   </table>

@@ -36,3 +36,6 @@ eopds-go/eopds-reset
 # Локальный конфиг eopds (секреты, бэкапы)
 /config/
 
+
+# Agent scratch (не для git)
+.agent-notes.local
