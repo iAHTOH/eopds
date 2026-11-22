@@ -49,6 +49,7 @@ HTTP-сервер админки и API. В разработке слушает 
 (`/install`) — см. [install.md](install.md). Эндпоинты — в [api.md](api.md).
 
 Веб-библиотека (страницы `/library/*`, каркас, указатель) — [library.md](library.md).
+Дашборд и журнал событий («Сообщения системы») — [system-events.md](system-events.md).
 
 ## Сборка
 

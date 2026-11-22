@@ -9,6 +9,7 @@ import (
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/logx"
 	"github.com/iAHTOH/eopds/eopds-go/internal/scansvc"
+	"github.com/iAHTOH/eopds/eopds-go/internal/store"
 )
 
 // ScanStateSnapshot — снимок состояния фонового сканирования (для /scan/status).
@@ -114,6 +115,11 @@ func (s *Server) runScanBg(roots []string, uid int64, fullRescan bool) {
 		return
 	}
 	ctx := context.Background()
+	// Пользователь-инициатор (для сообщений системы); может отсутствовать.
+	var runUser *store.User
+	if uid > 0 {
+		runUser, _ = st.GetUserByID(ctx, uid)
+	}
 
 	res, err := scansvc.Run(ctx, st, scansvc.Options{
 		Roots:      roots,
@@ -124,6 +130,17 @@ func (s *Server) runScanBg(roots []string, uid int64, fullRescan bool) {
 		FullRescan: fullRescan,
 		OnProgress: func(p scansvc.Progress) {
 			s.scan.setProgress(p)
+		},
+		OnError: func(relpath, filename, errmsg string) {
+			path := relpath
+			if filename != "" {
+				if path != "" {
+					path += "/"
+				}
+				path += filename
+			}
+			s.logEventUser(ctx, runUser, store.EventError, "scan.error",
+				map[string]string{"path": path, "error": errmsg})
 		},
 	})
 	if err != nil {

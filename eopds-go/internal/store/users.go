@@ -89,6 +89,33 @@ func (s *DBStore) GetUserByUsername(ctx context.Context, username string) (*User
 	return u, nil
 }
 
+// GetUserByID возвращает пользователя по id (ErrNotFound, если нет).
+func (s *DBStore) GetUserByID(ctx context.Context, id int64) (*User, error) {
+	q := fmt.Sprintf(
+		"SELECT id, username, email, password_hash, role, is_root, is_active, %s "+
+			"FROM users WHERE id = %s",
+		s.createdAtExpr(""), s.ph(1))
+	u := &User{}
+	var email sql.NullString
+	var isRoot, isActive any
+	err := s.db.QueryRowContext(ctx, q, id).Scan(
+		&u.ID, &u.Username, &email, &u.PasswordHash, &u.Role,
+		&isRoot, &isActive, &u.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: get user by id: %w", err)
+	}
+	u.IsRoot = asBool(isRoot)
+	u.IsActive = asBool(isActive)
+	if email.Valid {
+		u.Email = &email.String
+	}
+	return u, nil
+}
+
 // asBool приводит значение (PG bool или SQLite 0/1) к bool.
 func asBool(v any) bool {
 	switch x := v.(type) {

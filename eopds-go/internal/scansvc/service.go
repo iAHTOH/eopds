@@ -33,6 +33,10 @@ type Options struct {
 	// OnProgress вызывается после обработки каждой книги (для UI-счётчика).
 	OnProgress func(Progress)
 
+	// OnError вызывается при ошибке чтения/разбора файла (relpath — путь
+	// относительно корня, filename — имя внутри архива/файл, err — причина).
+	OnError func(relpath, filename, errmsg string)
+
 	// BatchSize — размер пачки книг для пакетной записи в БД (0 = 500).
 	BatchSize int
 
@@ -198,6 +202,9 @@ func Run(ctx context.Context, st store.Store, opts Options) (Result, error) {
 						mu.Unlock()
 						if opts.Logger != nil && n < maxLoggedImportErrors {
 							opts.Logger.Warnf("scansvc", "parse error %s/%s: %s", rec.RelPath, rec.Filename, rec.Error)
+						}
+						if opts.OnError != nil {
+							opts.OnError(rec.RelPath, rec.Filename, rec.Error)
 						}
 					case meta.KindStats:
 						// Итоговая статистика walk — только для логов; наши

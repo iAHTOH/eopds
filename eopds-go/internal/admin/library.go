@@ -590,6 +590,8 @@ func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(name))
 		if _, err := io.Copy(w, src.Reader); err != nil {
 			s.log.Error("library: download", "id", id, "err", err)
+		} else {
+			s.recordDownload(r, book, id, book.Format)
 		}
 	case "fb2+zip", "zip":
 		// Упаковать файл в ZIP на лету. Имя внутри архива — с расширением книги.
@@ -618,6 +620,7 @@ func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", itoa64(int64(buf.Len())))
 		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(base+".zip"))
 		_, _ = w.Write(buf.Bytes())
+		s.recordDownload(r, book, id, "fb2+zip")
 	case "epub", "epub3", "epub2", "kepub":
 		// Конвертация в EPUB из FB2. Версия: epub2 -> 2.0, прочее -> 3.0.
 		// (Kobo читает EPUB3; koboSpan-разметка — отдельная задача.)
@@ -645,6 +648,7 @@ func (s *Server) handleBookDownload(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", itoa64(int64(len(data))))
 		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(base+ext))
 		_, _ = w.Write(data)
+		s.recordDownload(r, book, id, fmtParam)
 	default:
 		// Конвертация в другие форматы — не подключена (см. roadmap).
 		http.NotFound(w, r)

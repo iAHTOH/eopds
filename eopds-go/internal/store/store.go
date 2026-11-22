@@ -45,6 +45,9 @@ type Store interface {
 	// GetUserByUsername ищет пользователя по логину.
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 
+	// GetUserByID возвращает пользователя по id (ErrNotFound, если нет).
+	GetUserByID(ctx context.Context, id int64) (*User, error)
+
 	// ListUsers возвращает всех пользователей.
 	ListUsers(ctx context.Context) ([]User, error)
 
@@ -95,6 +98,18 @@ type Store interface {
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error
 	// GetSetting читает настройку; ErrNotFound, если нет.
 	GetSetting(ctx context.Context, key string) (string, error)
+
+	// AddDownload фиксирует факт скачивания книги (для аналитики/статистики).
+	AddDownload(ctx context.Context, bookID, userID int64, format string) error
+
+	// AddSystemEvent вставляет сообщение системы и ротирует журнал до maxRows.
+	AddSystemEvent(ctx context.Context, e SystemEvent, maxRows int) error
+	// SystemEvents возвращает последние limit сообщений (новые сверху).
+	SystemEvents(ctx context.Context, limit int) ([]SystemEvent, error)
+	// CountSystemEvents — число хранимых сообщений системы.
+	CountSystemEvents(ctx context.Context) (int64, error)
+	// ClearSystemEvents очищает журнал сообщений системы.
+	ClearSystemEvents(ctx context.Context) error
 
 	// Stats возвращает сводную статистику для дашборда.
 	Stats(ctx context.Context) (Stats, error)

@@ -103,6 +103,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /login", s.handleLoginSubmit)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
+	mux.HandleFunc("GET /dashboard/events/download", s.requireAuth(s.handleEventsDownload))
 	mux.HandleFunc("GET /library", s.requireAuth(s.handleLibraryIndex))
 	mux.HandleFunc("GET /library/books", s.requireAuth(s.handleLibraryBooks))
 	mux.HandleFunc("GET /library/catalog/{id}", s.requireAuth(s.handleLibraryCatalog))
@@ -296,6 +297,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			}
 			data["LastScanDur"] = formatDuration(time.Duration(sum.ElapsedMS) * time.Millisecond)
 		}
+		s.addEventsData(r, data, st)
 	}
 	s.render(w, r, "home", data)
 }

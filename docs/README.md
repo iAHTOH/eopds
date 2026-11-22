@@ -31,6 +31,7 @@
 - [go/reader.md](go/reader.md) — онлайн-читалка FB2 (`/library/book/{id}/read`, `/html`, `/progress`).
 - [go/opds.md](go/opds.md) — OPDS-каталог (1.2 Atom и 2.0 JSON), маршруты `/opds*`, acquisition/search.
 - [go/epub.md](go/epub.md) — конвертер FB2→EPUB (2.0/3.0/kepub), `?fmt=` в download, структура EPUB.
+- [go/system-events.md](go/system-events.md) — «Сообщения системы» на дашборде: журнал событий, категории, ротация, скачивание `.log`.
 - [translating.md](translating.md) — как сделать перевод (для пулл-реквестов).
 - [contributing.md](contributing.md) — как внести вклад в проект.
 

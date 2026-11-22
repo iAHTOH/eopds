@@ -136,11 +136,15 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 
 	u, err := st.GetUserByUsername(r.Context(), username)
 	if err != nil || !u.IsActive || u.PasswordHash == "" {
+		s.logEvent(r.Context(), store.EventWarn, "auth.login_failed",
+			map[string]string{"user": username})
 		s.renderLogin(w, r, tr("login.err.credentials"), username)
 		return
 	}
 	ok, err := auth.VerifyPassword(password, u.PasswordHash)
 	if err != nil || !ok {
+		s.logEvent(r.Context(), store.EventWarn, "auth.login_failed",
+			map[string]string{"user": username})
 		s.renderLogin(w, r, tr("login.err.credentials"), username)
 		return
 	}
@@ -158,11 +162,15 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	setSessionCookie(w, id, int(sessionTTL.Seconds()))
 	s.log.Info("вход выполнен", "user", u.Username)
+	s.logEventUser(r.Context(), u, store.EventInfo, "auth.login", nil)
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 // handleLogout удаляет сессию и ведёт на главную.
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if u := currentUser(r); u != nil {
+		s.logEvent(r.Context(), store.EventInfo, "auth.logout", nil)
+	}
 	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
 		if st := s.getStore(); st != nil {
 			_ = st.DeleteSession(r.Context(), c.Value)

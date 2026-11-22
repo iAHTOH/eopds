@@ -36,12 +36,27 @@
   </div>
   {{end}}
 
-  <div class="card">
-    <header class="card-head">
-      <h1>{{T "dash.recent"}}</h1>
-      <p class="muted">{{T "home.subtitle"}}</p>
+  {{if .ShowEvents}}
+  <div class="card events-card">
+    <header class="card-head events-head">
+      <h1>{{T "dash.events"}}</h1>
+      <div class="events-actions">
+        <a class="dl-link" href="/dashboard/events/download">{{T "dash.events_download"}}</a>
+      </div>
     </header>
-    <p class="muted">{{T "dash.empty"}}</p>
+    {{if .Events}}
+    <ul class="events-list">
+      {{range .Events}}
+      <li class="ev ev-{{.Level}}">
+        <span class="ev-time">{{.Time}}</span>
+        <span class="ev-msg">{{if .ActorName}}<span class="ev-actor{{if .ActorRole}} ev-role-{{.ActorRole}}{{end}}">{{if .ActorText}}{{.ActorText}} {{end}}{{.ActorName}}</span> — {{end}}{{.Message}}</span>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="muted">{{T "dash.events_empty"}}</p>
+    {{end}}
   </div>
+  {{end}}
 </section>
 {{end}}

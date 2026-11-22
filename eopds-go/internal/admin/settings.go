@@ -112,6 +112,9 @@ func (s *Server) handleSaveScanPaths(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.log.Info("каталоги сканирования сохранены", "count", len(paths))
+	s.logEvent(r.Context(), store.EventInfo, "settings.scan_dirs", map[string]string{
+		"count": itoa64(int64(len(paths))),
+	})
 	http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#scan", http.StatusSeeOther)
 }
 
@@ -141,5 +144,8 @@ func (s *Server) handleClearLibrary(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("библиотека очищена",
 		"books", res.Books, "authors", res.Authors,
 		"series", res.Series, "genres", res.Genres, "catalogs", res.Catalogs)
+	s.logEvent(r.Context(), store.EventWarn, "lib.clear", map[string]string{
+		"books": itoa64(res.Books),
+	})
 	http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#db", http.StatusSeeOther)
 }
