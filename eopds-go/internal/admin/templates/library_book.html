@@ -20,6 +20,7 @@
           <a class="dl-link" href="/library/book/{{.Book.ID}}/download?fmt={{.Book.Format}}">{{.Book.Format}}</a>
           {{if eq .Book.Format "fb2"}}
           <a class="dl-link" href="/library/book/{{.Book.ID}}/download?fmt=fb2%2Bzip">fb2+zip</a>
+          <a class="dl-link" href="/library/book/{{.Book.ID}}/download?fmt=epub">epub</a>
           {{end}}
         </p>
         {{if eq .Book.Format "fb2"}}

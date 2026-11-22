@@ -35,6 +35,9 @@
 <div class="reader-toolbar" id="reader-toolbar">
   <a class="btn" href="/library/book/{{.Book.ID}}">&larr; {{T "lib.read_back"}}</a>
   <a class="btn" href="/library/book/{{.Book.ID}}/download?fmt={{.Book.Format}}">{{T "lib.download"}}</a>
+  {{if eq .Book.Format "fb2"}}
+  <a class="btn" href="/library/book/{{.Book.ID}}/download?fmt=epub">epub</a>
+  {{end}}
   <span class="spacer"></span>
   <div class="grp">
     <button type="button" id="page-prev" title="{{T "lib.read_prev"}}">&#8249;</button>
