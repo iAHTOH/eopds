@@ -29,6 +29,7 @@
 - [go/api.md](go/api.md) — HTTP API Go-сервиса (версия, здоровье, обновления, форум).
 - [go/library.md](go/library.md) — веб-библиотека Go (`/library/*`, алфавитный указатель, каркас страниц).
 - [go/reader.md](go/reader.md) — онлайн-читалка FB2 (`/library/book/{id}/read`, `/html`, `/progress`).
+- [go/opds.md](go/opds.md) — OPDS-каталог (1.2 Atom и 2.0 JSON), маршруты `/opds*`, acquisition/search.
 - [translating.md](translating.md) — как сделать перевод (для пулл-реквестов).
 - [contributing.md](contributing.md) — как внести вклад в проект.
 

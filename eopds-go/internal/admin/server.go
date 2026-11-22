@@ -118,6 +118,16 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
 	mux.HandleFunc("GET /library/suggest", s.requireAuth(s.handleLibrarySuggest))
 	mux.HandleFunc("GET /library/new", s.requireAuth(s.handleLibraryNew))
+
+	// OPDS 1.2 (Atom) / 2.0 (JSON) — публичные каталоги.
+	mux.HandleFunc("GET /opds", s.handleOPDSRoot)
+	mux.HandleFunc("GET /opds/new", s.handleOPDSNew)
+	mux.HandleFunc("GET /opds/books", s.handleOPDSBooks)
+	mux.HandleFunc("GET /opds/search", s.handleOPDSSearch)
+	mux.HandleFunc("GET /opds/search.xml", s.handleOPDSSearchDescription)
+	mux.HandleFunc("GET /opds/authors", s.handleOPDSAuthors)
+	mux.HandleFunc("GET /opds/series", s.handleOPDSSeries)
+	mux.HandleFunc("GET /opds/genres", s.handleOPDSGenres)
 	mux.HandleFunc("GET /library/shelf", s.requireAuth(s.handleLibraryShelf))
 	mux.HandleFunc("POST /library/shelf/{id}/remove", s.requireAuth(s.handleShelfRemove))
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))

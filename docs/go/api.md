@@ -22,6 +22,10 @@ read-only эндпоинты доступны без неё.
 | POST | `/scan/run` | запуск сканирования в фоне (admin); сразу `303` на `/scan`; `full=1` — полный перескан |
 | GET | `/scan/status` | JSON-статус фонового сканирования (для поллинга) |
 | GET | `/library/suggest` | JSON-подсказки живого поиска (`?q=&by=title\|author\|series`) |
+| GET | `/library/new` | новые поступления (книги по `id` DESC, постранично) |
+| GET | `/library/shelf` | книжная полка пользователя |
+| POST | `/library/shelf/{id}/remove` | убрать книгу с полки (`303` назад) |
+| GET | `/opds*` | OPDS-каталог (1.2 Atom / 2.0 JSON), публичный — [opds.md](opds.md) |
 
 ## `GET /scan/status`
 
