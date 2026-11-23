@@ -23,4 +23,8 @@
   --alert-bg: #fdecea;
   --alert-border: #f5c2b8;
   --alert-text: #a3280f;
+
+  /* Звёзды рейтинга: приглушённый оранжевый, не кислотный. */
+  --star-fill: #c0602a;
+  --star-empty: #d8cdb9;
 }

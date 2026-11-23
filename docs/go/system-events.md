@@ -29,6 +29,23 @@
 `actor`/`actor_role` выводятся на языке пользователя (i18n). Это сохраняет
 мультиязычность.
 
+### Служебные ключи args (ссылки в журнале)
+
+Помимо подстановок в текст, в `args` могут присутствовать **служебные ключи
+с префиксом `_`** — они **не подставляются** в сообщение, а служат для ссылок:
+
+| ключ | значение | на что ссылка |
+|---|---|---|
+| `_book_id` | id книги | карточка `/library/book/{id}` |
+| `_user_id` | id инициатора (авто) | профиль `/settings/profile?u={id}` |
+
+`_user_id` проставляется автоматически в `logEvent`/`logEventUser` по
+инициатору; `_book_id` добавляют book-обработчики (`book.rate`,
+`book.comment`, `book.comment_delete`, `book.download`). В блоке «Сообщения
+системы» имя актёра становится ссылкой на профиль, а название книги
+(`{book}`) — ссылкой на карточку. В скачиваемом `.log` (plain text) ссылок
+нет, только подстановки.
+
 ### Ротация и лимиты
 
 - Ёмкость журнала — настройка **`events.max_rows`** (ключ в `settings`,
@@ -45,8 +62,11 @@
 | `scan.start` | info | — | запуск сканирования |
 | `scan.end` | info/warn | `created`, `updated`, `errors`, `elapsed` | итог сканирования (warn, если были ошибки) |
 | `scan.error` | error | `path`, `error` | ошибка чтения/разбора файла (полный путь, для архива — `архив.zip/файл`) |
-| `book.download` | info | `book` | скачивание книги |
-| `auth.login` | info | — | успешный вход |
+| `book.download` | info | `book`, `_book_id` | скачивание книги |
+| `book.rate` | info | `book`, `stars`, `_book_id` | оценка книги (`stars` — «X.X» из 5) |
+| `book.comment` | info | `book`, `_book_id` | отзыв на книгу |
+| `book.comment_delete` | warn | `book`, `_book_id` | удаление отзыва на книгу |
+| `auth.login` | info | `_user_id` | успешный вход |
 | `auth.login_failed` | warn | `user` | неудачная попытка входа |
 | `auth.logout` | info | — | выход |
 | `settings.scan_dirs` | info | `count` | изменение каталогов сканирования |
@@ -80,7 +100,8 @@
 - `internal/admin/events.go` — `logEvent` / `logEventUser`, чтение
   `events.max_rows`; события пишутся с отвязанным от запроса контекстом
   (`context.WithoutCancel`), чтобы пережить завершение ответа.
-- `internal/admin/events_format.go` — `eventViews`/`formatEvent`:
+- `internal/admin/events_format.go` — `eventViews`/`formatEvent` (HTML: экранирование,
+  ссылки на профиль/книгу) и `formatEventText` (plain text для `.log`):
   подстановка `args` в переведённый шаблон.
 - `internal/admin/events_handler.go` — скачивание `.log`.
 - `internal/admin/events.go` (`canViewEvents`) — проверка доступа.

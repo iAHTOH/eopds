@@ -110,6 +110,17 @@ type Store interface {
 	// AddDownload фиксирует факт скачивания книги (для аналитики/статистики).
 	AddDownload(ctx context.Context, bookID, userID int64, format string) error
 
+	// SetBookRating сохраняет/обновляет оценку пользователя (score 0..10 = 0..5 звёзд с половинками).
+	SetBookRating(ctx context.Context, bookID, userID int64, score int) error
+	// BookRatingSummary — агрегат оценок книги (число, среднее в звёздах) и оценка пользователя.
+	BookRatingSummary(ctx context.Context, bookID, userID int64) (RatingSummary, error)
+	// AddBookComment добавляет отзыв, возвращает его id.
+	AddBookComment(ctx context.Context, bookID, userID int64, body string) (int64, error)
+	// BookComments — отзывы к книге (новые сверху); флаг CanDelete — по viewer.
+	BookComments(ctx context.Context, bookID int64, limit int, viewerID int64, viewerIsModerator bool) ([]BookComment, error)
+	// DeleteBookComment удаляет отзыв (свой; модератор — любой при byModerator).
+	DeleteBookComment(ctx context.Context, commentID, userID int64, byModerator bool) error
+
 	// AddSystemEvent вставляет сообщение системы и ротирует журнал до maxRows.
 	AddSystemEvent(ctx context.Context, e SystemEvent, maxRows int) error
 	// SystemEvents возвращает последние limit сообщений (новые сверху).
@@ -143,6 +154,10 @@ type Store interface {
 	RecentBooks(ctx context.Context, limit int) ([]LibraryBook, error)
 	// LatestBooks — книги, последние добавленные сверху (id DESC), постранично.
 	LatestBooks(ctx context.Context, page, size int) (LibraryPage, error)
+	// BookDownloadCount — число скачиваний книги (таблица downloads).
+	BookDownloadCount(ctx context.Context, bookID int64) (int64, error)
+	// PopularBooks — книги по популярности (kind: downloads|rating), постранично.
+	PopularBooks(ctx context.Context, kind string, page, size int, asc bool) (LibraryPage, error)
 	// PrefixIndex — префиксный алфавитный указатель (table,col,length,prefix,lang).
 	PrefixIndex(ctx context.Context, table, col string, length int, prefix string, lang int) ([]AlphabetItem, error)
 	// BookByPrefixIndex — указатель книг по префиксу.

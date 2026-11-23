@@ -41,6 +41,158 @@
     <p>{{.Book.Annotation}}</p>
   </div>
   {{end}}
+
+  <p class="book-downloads"><b>{{T "lib.downloads_count"}}:</b> {{.DownloadCount}}</p>
+
+  {{template "book_rating" .}}
 </div>
+
+{{template "book_comments" .}}
+{{end}}
+
+{{/* Блок рейтинга: 5 звёзд с половинками, клик по звезде = оценка. */}}
+{{define "book_rating"}}
+<div class="book-rating" id="rating">
+  <div class="rating-head">
+    <b>{{T "reviews.rating"}}:</b>
+    {{if .Rating.Count}}
+    <span class="rating-avg">{{printf "%.1f" .Rating.Avg}}</span>
+    <span class="rating-stars">{{template "stars" .Rating.Avg}}</span>
+    <span class="rating-count muted">({{.Rating.Count}})</span>
+    {{else}}
+    <span class="muted">{{T "reviews.no_rating"}}</span>
+    {{end}}
+  </div>
+
+  {{if .User}}
+  <div class="rating-pick-label">{{T "reviews.your_rating"}}:</div>
+  <form class="rating-pick" id="rating-pick" method="post" action="/library/book/{{.Book.ID}}/rate">
+    <input type="hidden" name="score" id="rating-score" value="{{.Rating.MyScore}}">
+    <div class="rating-widget" id="rating-widget" role="radiogroup" aria-label="{{T "reviews.your_rating"}}">
+      {{/* 10 половинок: каждая — радиокнопка. */}}
+      {{$my := div2 .Rating.MyScore}}
+      <span class="rating-wids" data-value="{{$my}}">
+        {{range $i := seq 5}}<span class="rw-star"><span class="rw-half" data-score="{{mul2 $i}}" data-half="1"></span><span class="rw-half" data-score="{{mul2 $i}}" data-half="0"></span></span>{{end}}
+      </span>
+    </div>
+    <span class="rating-now" id="rating-now">{{if .Rating.MyScore}}{{printf "%.1f" $my}}{{else}}—{{end}}</span>
+    <span class="muted">/ 5</span>
+  </form>
+  {{else}}
+  <p class="muted rating-login"><a href="/login?next={{printf "/library/book/%d" .Book.ID}}">{{T "reviews.login_to_rate"}}</a></p>
+  {{end}}
+</div>
+{{end}}
+
+{{/* Звёзды (только чтение): 5 звёзд, дробная часть — половина. value 0..5. */}}
+{{define "stars"}}
+{{if ge . 4.75}}<span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span>
+{{else if ge . 4.25}}<span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star half">★</span>
+{{else if ge . 3.75}}<span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star empty">★</span>
+{{else if ge . 3.25}}<span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star half">★</span><span class="star empty">★</span>
+{{else if ge . 2.75}}<span class="star full">★</span><span class="star full">★</span><span class="star full">★</span><span class="star empty">★</span><span class="star empty">★</span>
+{{else if ge . 2.25}}<span class="star full">★</span><span class="star full">★</span><span class="star half">★</span><span class="star empty">★</span><span class="star empty">★</span>
+{{else if ge . 1.75}}<span class="star full">★</span><span class="star full">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span>
+{{else if ge . 1.25}}<span class="star full">★</span><span class="star half">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span>
+{{else if ge . 0.75}}<span class="star full">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span>
+{{else if ge . 0.25}}<span class="star half">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span>
+{{else}}<span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span><span class="star empty">★</span>
+{{end}}
+{{end}}
+
+{{/* Блок отзывов. */}}
+{{define "book_comments"}}
+<div class="card book-comments" id="comments">
+  <header class="card-head">
+    <h2>{{T "reviews.comments"}}{{if .Comments}} <span class="muted">({{len .Comments}})</span>{{end}}</h2>
+  </header>
+
+  {{if .User}}
+  <form class="comment-form" method="post" action="/library/book/{{.Book.ID}}/comment">
+    <textarea class="comment-input" name="body" rows="5" maxlength="{{.CommentMaxLen}}"
+              placeholder="{{T "reviews.placeholder"}}" required></textarea>
+    <div class="comment-form-foot">
+      <button type="submit" class="dl-link comment-send">{{T "reviews.send"}}</button>
+    </div>
+  </form>
+  {{else}}
+  <p class="muted"><a href="/login?next={{printf "/library/book/%d" .Book.ID}}">{{T "reviews.login_to_comment"}}</a></p>
+  {{end}}
+
+  {{if .Comments}}
+  <ul class="comment-list">
+    {{range .Comments}}
+    <li class="comment">
+      <div class="comment-meta">
+        <span class="comment-author">{{.UserName}}</span>
+        <time class="muted" datetime="{{.CreatedAt}}">{{.CreatedAt}}</time>
+        {{if .CanDelete}}
+        <form class="comment-del" method="post" action="/library/book/{{.BookID}}/comment/{{.ID}}/delete"
+              onsubmit="return confirm('{{T "reviews.confirm_delete"}}')">
+          <button type="submit" class="comment-del-btn" title="{{T "reviews.delete"}}">✕</button>
+        </form>
+        {{end}}
+      </div>
+      <div class="comment-body">{{.Body}}</div>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="muted">{{T "reviews.empty"}}</p>
+  {{end}}
+</div>
+
+<script>
+(function(){
+  var widget = document.getElementById('rating-widget');
+  if(!widget) return;
+  var form  = document.getElementById('rating-pick');
+  var score = document.getElementById('rating-score');
+  var now   = document.getElementById('rating-now');
+  var current = parseFloat(score.value || '0') / 2; // в звёздах
+
+  // Отрисовка заливки звёзд по значению в звёздах (0..5).
+  function paint(v){
+    var stars = widget.querySelectorAll('.rw-star');
+    for(var s=0; s<stars.length; s++){
+      var starVal = s + 1;            // номер звезды (1..5)
+      var fill;                        // 0 | .5 | 1
+      if(v >= starVal) fill = 1;
+      else if(v >= starVal - 0.5) fill = 0.5;
+      else fill = 0;
+      stars[s].style.setProperty('--fill', fill);
+    }
+  }
+
+  // Ближайшая оценка в звёздах (половинки) из координаты курсора по звезде.
+  function valueFromEvent(e, starEl){
+    var r = starEl.getBoundingClientRect();
+    var leftHalf = (e.clientX - r.left) < r.width/2;
+    var idx = Array.prototype.indexOf.call(widget.querySelectorAll('.rw-star'), starEl);
+    return leftHalf ? idx + 0.5 : idx + 1;
+  }
+
+  var stars = widget.querySelectorAll('.rw-star');
+  for(var i=0;i<stars.length;i++){
+    (function(starEl){
+      starEl.addEventListener('mousemove', function(e){
+        paint(valueFromEvent(e, starEl));
+      });
+      starEl.addEventListener('click', function(e){
+        var v = valueFromEvent(e, starEl);
+        var s10 = Math.round(v * 2); // звёзды -> 0..10
+        score.value = s10;
+        current = v;
+        paint(v);
+        now.textContent = v.toFixed(1);
+        form.submit();
+      });
+    })(stars[i]);
+  }
+  widget.addEventListener('mouseleave', function(){ paint(current); });
+
+  paint(current);
+})();
+</script>
 {{end}}
 

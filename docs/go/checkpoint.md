@@ -113,7 +113,14 @@ docker compose -f docker-compose.go.yml build eopds-go && \
   docker compose -f docker-compose.go.yml up -d eopds-go
 ```
 
-Логин админа в dev-стенде: `admin` / `password123`.
+Тестовые учётки dev-стенда (все проверены, вход по `POST /login`):
+
+| Логин | Пароль | Роль |
+|-------|--------|------|
+| `admin` | `password123` | admin (root) |
+| `moderator` | `moderator123` | moderator |
+| `reader` | `reader123` | reader |
+
 Скан-каталог: `/books` (в контейнере), монтируется из
 `/run/media/ahtoh/SSD2/e-book`.
 

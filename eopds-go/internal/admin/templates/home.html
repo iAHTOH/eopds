@@ -19,6 +19,38 @@
     </div>
   </div>
 
+  {{if or .PopularDownloads .PopularRating}}
+  <div class="card popular-card">
+    <header class="card-head">
+      <h1>{{T "dash.popular"}}</h1>
+    </header>
+    <div class="popular-cols">
+      <section class="popular-col">
+        <h5><a class="footer-link" href="/dashboard/popular?by=downloads">{{T "dash.popular_by_downloads"}}</a></h5>
+        <div class="shelf-grid">
+          {{range .PopularDownloads}}
+          <a href="/library/book/{{.ID}}" class="shelf-item" title="{{.Title}}">
+            <img src="/library/book/{{.ID}}/cover" alt="" width="64" loading="lazy" onerror="this.onerror=null;this.src='/static/img/eopds_nocover.webp'">
+            <span>{{.Title}}</span>
+          </a>
+          {{else}}<p class="muted">{{T "lib.empty"}}</p>{{end}}
+        </div>
+      </section>
+      <section class="popular-col">
+        <h5><a class="footer-link" href="/dashboard/popular?by=rating">{{T "dash.popular_by_rating"}}</a></h5>
+        <div class="shelf-grid">
+          {{range .PopularRating}}
+          <a href="/library/book/{{.ID}}" class="shelf-item" title="{{.Title}}">
+            <img src="/library/book/{{.ID}}/cover" alt="" width="64" loading="lazy" onerror="this.onerror=null;this.src='/static/img/eopds_nocover.webp'">
+            <span>{{.Title}}</span>
+          </a>
+          {{else}}<p class="muted">{{T "lib.empty"}}</p>{{end}}
+        </div>
+      </section>
+    </div>
+  </div>
+  {{end}}
+
   {{if .LastScan}}
   <div class="card last-scan">
     <header class="card-head">
@@ -49,7 +81,7 @@
       {{range .Events}}
       <li class="ev ev-{{.Level}}">
         <span class="ev-time">{{.Time}}</span>
-        <span class="ev-msg">{{if .ActorName}}<span class="ev-actor{{if .ActorRole}} ev-role-{{.ActorRole}}{{end}}">{{if .ActorText}}{{.ActorText}} {{end}}{{.ActorName}}</span> — {{end}}{{.Message}}</span>
+        <span class="ev-msg">{{if .ActorName}}<span class="ev-actor{{if .ActorRole}} ev-role-{{.ActorRole}}{{end}}">{{if .ActorText}}{{.ActorText}} {{end}}{{if .ActorLink}}<a class="ev-actor-link" href="{{.ActorLink}}">{{.ActorName}}</a>{{else}}{{.ActorName}}{{end}}</span> — {{end}}{{.Message}}</span>
       </li>
       {{end}}
     </ul>

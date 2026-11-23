@@ -71,6 +71,9 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 			"kb":       kb,
 			"trim":     trimText,
 			"initial":  greetingInitial,
+			"div2":     div2,
+			"seq":      seq,
+			"mul2":     mul2,
 		})
 		if _, err := base.ParseFS(templatesFS, "templates/layout.html", "templates/chrome.html", "templates/lib_parts.html", "templates/library_entities.html", "templates/settings_parts.html", file); err != nil {
 			return nil, err
@@ -104,6 +107,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /login", s.handleLoginSubmit)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
+	mux.HandleFunc("GET /dashboard/popular", s.requireAuth(s.handleDashboardPopular))
 	mux.HandleFunc("GET /dashboard/events/download", s.requireAuth(s.handleEventsDownload))
 	// Публичный просмотр библиотеки доступен и гостям (без входа). Загрузка
 	// файлов, читалка и полка — только для авторизованных (ниже).
@@ -123,6 +127,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library/book/{id}/read", s.requireAuth(s.handleBookRead))
 	mux.HandleFunc("GET /library/book/{id}/html", s.requireAuth(s.handleBookHTML))
 	mux.HandleFunc("POST /library/book/{id}/progress", s.requireAuth(s.handleBookProgress))
+	// Оценки и отзывы: просмотр публичен, действия — только для авторизованных.
+	mux.HandleFunc("POST /library/book/{id}/rate", s.requireAuth(s.handleBookRate))
+	mux.HandleFunc("POST /library/book/{id}/comment", s.requireAuth(s.handleBookCommentAdd))
+	mux.HandleFunc("POST /library/book/{id}/comment/{cid}/delete", s.requireAuth(s.handleBookCommentDelete))
 
 	// OPDS 1.2 (Atom) / 2.0 (JSON) — только для авторизованных (HTTP Basic).
 	// Гостям отдаётся 401 с WWW-Authenticate.
@@ -215,7 +223,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, dat
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName, "kb": kb, "trim": trimText, "initial": greetingInitial})
+	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName, "kb": kb, "trim": trimText, "initial": greetingInitial, "div2": div2, "seq": seq, "mul2": mul2})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := cloned.ExecuteTemplate(w, "layout", data); err != nil {
 		s.log.Error("render", "page", page, "err", err)
@@ -266,6 +274,13 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 			if pg, err := st.ShelfBooks(r.Context(), user.ID, 1, 3); err == nil {
 				data["ShelfBooks"] = pg.Items
 			}
+		}
+		// Популярные книги (топ-3): по скачиваниям и по рейтингу — для дашборда.
+		if pg, err := st.PopularBooks(r.Context(), store.PopularByDownloads, 1, 3, false); err == nil {
+			data["PopularDownloads"] = pg.Items
+		}
+		if pg, err := st.PopularBooks(r.Context(), store.PopularByRating, 1, 3, false); err == nil {
+			data["PopularRating"] = pg.Items
 		}
 		// Каталоги верхнего уровня — для выпадающего меню «Каталоги» в шапке.
 		// Список может меняться после сканирования, поэтому грузим на каждой странице.

@@ -1,9 +1,26 @@
 {{define "content"}}
+{{if .Popular}}{{template "popular_head" .}}{{end}}
 {{if .ShowList}}
   {{if .Page.Items}}{{template "lib_book_list" .}}{{else}}<p class="muted">{{if .ShelfMode}}{{T "lib.shelf_empty"}}{{else}}{{T "lib.empty"}}{{end}}</p>{{end}}
 {{else}}
   {{template "lib_prefix_index" .}}
 {{end}}
+{{end}}
+
+{{/* Шапка страницы «Популярные книги»: вкладки по критерию + сортировка. */}}
+{{define "popular_head"}}
+<div class="card popular-head">
+  <div class="lib-tabs popular-tabs">
+    <a href="/dashboard/popular?by=downloads{{if eq .Sort "asc"}}&sort=asc{{end}}"{{if eq .PopularKind "downloads"}} class="active"{{end}}>{{T "dash.popular_by_downloads"}}</a>
+    <a href="/dashboard/popular?by=rating{{if eq .Sort "asc"}}&sort=asc{{end}}"{{if eq .PopularKind "rating"}} class="active"{{end}}>{{T "dash.popular_by_rating"}}</a>
+    <span class="muted popular-total">{{T "lib.total"}}: {{.Page.Total}}</span>
+    <span class="popular-sort">
+      {{T "popular.sort"}}:
+      <a href="/dashboard/popular?by={{.PopularKind}}&sort=desc"{{if eq .Sort "desc"}} class="active-sort"{{end}}>↓</a>
+      <a href="/dashboard/popular?by={{.PopularKind}}&sort=asc"{{if eq .Sort "asc"}} class="active-sort"{{end}}>↑</a>
+    </span>
+  </div>
+</div>
 {{end}}
 
 {{define "lib_prefix_index"}}

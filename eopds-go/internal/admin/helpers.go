@@ -23,6 +23,21 @@ func goVersion() string { return runtime.Version() }
 // itoa — int в строку.
 func itoa(n int) string { return strconv.Itoa(n) }
 
+// div2 переводит оценку в шкале 0..10 в звёзды 0..5 (половинки).
+func div2(score int) float64 { return float64(score) / 2.0 }
+
+// seq возвращает срез [1..n] — для циклов в шаблонах (range seq 5).
+func seq(n int) []int {
+	out := make([]int, 0, n)
+	for i := 1; i <= n; i++ {
+		out = append(out, i)
+	}
+	return out
+}
+
+// mul2 — число удвоенное (i*2) для шаблонов.
+func mul2(n int) int { return n * 2 }
+
 // itoa64 — int64 в строку.
 func itoa64(n int64) string { return strconv.FormatInt(n, 10) }
 

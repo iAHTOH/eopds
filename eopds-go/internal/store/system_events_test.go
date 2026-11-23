@@ -84,6 +84,28 @@ func TestAddDownload(t *testing.T) {
 	if err := st.AddDownload(ctx, bid, 0, "fb2"); err != nil {
 		t.Fatalf("add anon download: %v", err)
 	}
+
+	// Повторы того же пользователя (например, чтение после скачивания) не
+	// создают дубль: уникальный индекс (book_id, user_id). Популярность не растёт.
+	before, err := st.BookDownloadCount(ctx, bid)
+	if err != nil {
+		t.Fatalf("count before: %v", err)
+	}
+	if err := st.AddDownload(ctx, bid, uid, "read"); err != nil {
+		t.Fatalf("repeat download: %v", err)
+	}
+	after, err := st.BookDownloadCount(ctx, bid)
+	if err != nil {
+		t.Fatalf("count after: %v", err)
+	}
+	if after != before {
+		t.Fatalf("повтор увеличил популярность: было %d, стало %d", before, after)
+	}
+
+	// BookDownloadCount: 1 уникальный пользователь + 1 аноним = 2.
+	if before != 2 {
+		t.Fatalf("BookDownloadCount = %d, want 2", before)
+	}
 }
 
 // itoa — локальный хелпер для тестов (strconv для наглядности аргументов).

@@ -40,12 +40,14 @@ func (s *Server) handleBookRead(w http.ResponseWriter, r *http.Request) {
 	data := s.libData(r, "books")
 	data["Book"] = book
 
-	// Открытие читалки кладёт книгу на полку пользователя (как и скачивание).
+	// Открытие читалки кладёт книгу на полку пользователя (как и скачивание)
+	// и учитывается в популярности (downloads, format='read', уникально на пользователя).
 	if u := currentUser(r); u != nil {
 		if err := st.AddToShelf(r.Context(), u.ID, id); err != nil {
 			s.log.Error("reader: add to shelf", "id", id, "err", err)
 		}
 	}
+	s.recordRead(r, id)
 
 	// Сохранённый прогресс чтения (последняя позиция).
 	pos := ""

@@ -107,6 +107,9 @@ Go-ядро — фактически новый проект со своим в�
 | 2 | `0002_book_lang_code.sql` | Бэкфилл `books.lang_code` по первому символу `search_title` (1/2/3/9) |
 | 3 | `0003_scan_files.sql` | Отпечатки прочитанных файлов (`scan_files`) для инкрементального скана |
 | 4 | `0004_system_events.sql` | Журнал сообщений системы (`system_events`) для дашборда |
+| 5 | `0005_user_profile.sql` | Профиль пользователя: `display_name`, `avatar`, `allow_adult`, `pref_lang`, `pref_theme`, `read_font`, `read_font_size` |
+| 6 | `0006_book_ratings_comments.sql` | Оценки (`book_ratings`) и отзывы (`book_comments`) к книгам |
+| 7 | `0007_downloads_unique.sql` | Уникальность `downloads(book_id, user_id)` (частичный индекс) — популярность по уникальным читателям |
 
 ## Сканирование и отслеживание удалений
 
@@ -441,9 +444,51 @@ PK/уникальность `(book_id, kind)`; индекс `(book_id)`.
 | created_at | timestamptz | |
 Индекс `(ts)`.
 
-> `downloads` используется (`AddDownload`) для аналитики скачиваний;
+> `downloads` используется (`AddDownload`) для аналитики популярности книги;
 > `system_events` — для операционного журнала. Таблица `audit_log`
 > зарезервирована под строгий аудит действий (пока не заполняется).
+
+### `downloads` — популярность по уникальным читателям
+Каждая строка — «пользователь получил книгу» (скачал файл, открыл в читалке
+`format='read'` или получил по OPDS). С миграции 7 действует частичный
+уникальный индекс `downloads_book_user_uidx (book_id, user_id)
+WHERE user_id IS NOT NULL`: для залогиненных — **одна строка на пару
+(книга, пользователь)**, повторные скачивания/чтения дубль не создают
+(`AddDownload` → `ON CONFLICT DO NOTHING`). Анонимные строки (`user_id IS NULL`)
+индексом не ограничиваются.
+
+**Популярность книги** = `COUNT(DISTINCT user_id)` (залогиненные) +
+все строки с `user_id IS NULL`. Так накрутка повторами невозможна. Анонимных
+строк в текущем трафике нет (скачивание/чтение/OPDS требуют входа), формула
+остаётся корректной и на будущее.
+
+### `book_ratings` (оценки книг)
+Звёздный рейтинг — одна оценка на пользователя на книгу. Шкала `0..10`
+(шаг 1) = 5 звёзд с половинками (`score/2` → значение в звёздах). Среднее и
+количество считаются на лету (`AVG`/`COUNT`), кэш-агрегат не хранится.
+Подробности UI — [go/library.md](go/library.md) («Оценки и отзывы»).
+| Колонка | Тип | Примечание |
+|---|---|---|
+| book_id | bigint FK→books | `ON DELETE CASCADE` |
+| user_id | bigint FK→users | `ON DELETE CASCADE` |
+| score | smallint | `CHECK (score BETWEEN 0 AND 10)` |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+PK `(book_id, user_id)` — одна оценка на пользователя; индекс `(user_id)`.
+
+### `book_comments` (отзывы к книгам)
+Текстовые отзывы/впечатления. Публикуются сразу (регистрация по приглашению,
+премодерации нет). Автор удаляет свой отзыв; модератор/админ — любой.
+| Колонка | Тип | Примечание |
+|---|---|---|
+| id | bigint/identity PK | |
+| book_id | bigint FK→books | `ON DELETE CASCADE` |
+| user_id | bigint FK→users | `ON DELETE CASCADE` |
+| body | text | текст отзыва (обрезается до 4000 символов в коде) |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+Индексы: `(book_id, created_at DESC)` — лента отзывов на карточке;
+`(user_id)` — отзывы пользователя.
 
 ## Открытые вопросы
 

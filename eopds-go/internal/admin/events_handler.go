@@ -30,7 +30,7 @@ func (s *Server) handleEventsDownload(w http.ResponseWriter, r *http.Request) {
 	var sb strings.Builder
 	for _, e := range evs {
 		ts := time.UnixMilli(e.TS).Local().Format("2006-01-02 15:04:05")
-		line := formatEvent(e, tr)
+		line := formatEventText(e, tr)
 		if strings.TrimSpace(e.Actor) != "" {
 			line = actorLabel(e.Actor, e.ActorRole, tr) + " — " + line
 		}

@@ -462,6 +462,14 @@ func (s *Server) handleLibraryBook(w http.ResponseWriter, r *http.Request) {
 	}
 	data := s.libData(r, "books")
 	data["Book"] = book
+	// Одноразовые сообщения после оценки/отзыва.
+	if k := takeFlash(w, r, "book", "ok"); k != "" {
+		data["FlashOK"] = s.tr(r)(k)
+	}
+	if k := takeFlash(w, r, "book", "err"); k != "" {
+		data["FlashErr"] = s.tr(r)(k)
+	}
+	s.attachBookReviews(r, data, book.ID)
 	s.render(w, r, "library_book", data)
 }
 

@@ -50,6 +50,7 @@ func (s *Server) logEvent(ctx context.Context, level, category string, args map[
 	actor, role := "", ""
 	if u, _ := ctx.Value(userCtxKey).(*store.User); u != nil {
 		actor, role = eventActor(u)
+		args = withUserID(args, u.ID)
 	}
 	e := store.SystemEvent{
 		Level:     level,
@@ -79,8 +80,28 @@ func (s *Server) recordDownload(r *http.Request, book store.LibraryBook, bookID 
 		s.log.Warn("record download", "book", bookID, "err", err)
 	}
 	s.logEvent(ctx, store.EventInfo, "book.download", map[string]string{
-		"book": book.Title,
+		"book":     book.Title,
+		"_book_id": strconv.FormatInt(bookID, 10),
 	})
+}
+
+// recordRead фиксирует открытие книги в читалке как факт «прочитал/читает»:
+// строка в downloads с format='read'. Уникальную популярность это не завышает
+// (одна запись на пользователя на книгу). Сообщение системы не пишем — это не
+// операционно значимое действие (защита журнала от спама при каждом открытии).
+func (s *Server) recordRead(r *http.Request, bookID int64) {
+	st := s.getStore()
+	if st == nil {
+		return
+	}
+	u := currentUser(r)
+	if u == nil {
+		return
+	}
+	ctx := context.WithoutCancel(r.Context())
+	if err := st.AddDownload(ctx, bookID, u.ID, "read"); err != nil {
+		s.log.Warn("record read", "book", bookID, "err", err)
+	}
 }
 
 // logEventUser пишет событие от имени явно переданного пользователя
@@ -91,6 +112,9 @@ func (s *Server) logEventUser(ctx context.Context, u *store.User, level, categor
 		return
 	}
 	actor, role := eventActor(u)
+	if u != nil {
+		args = withUserID(args, u.ID)
+	}
 	e := store.SystemEvent{
 		Level:     level,
 		Category:  category,
@@ -101,6 +125,20 @@ func (s *Server) logEventUser(ctx context.Context, u *store.User, level, categor
 	if err := st.AddSystemEvent(ctx, e, s.eventsMaxRows(ctx, st)); err != nil {
 		s.log.Warn("system event", "category", category, "err", err)
 	}
+}
+
+// withUserID возвращает копию args с id инициатора (для ссылки на профиль в
+// журнале). Значения с префиксом «_» служебные и в текст не подставляются.
+func withUserID(args map[string]string, uid int64) map[string]string {
+	if uid <= 0 {
+		return args
+	}
+	out := make(map[string]string, len(args)+1)
+	for k, v := range args {
+		out[k] = v
+	}
+	out["_user_id"] = strconv.FormatInt(uid, 10)
+	return out
 }
 
 // translatorFor возвращает функцию перевода для языка запроса.
