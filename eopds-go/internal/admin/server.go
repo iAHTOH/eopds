@@ -58,6 +58,7 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		"reader":          "templates/reader.html",
 		"scan":            "templates/scan.html",
 		"settings":        "templates/settings.html",
+		"profile":         "templates/profile.html",
 		"login":           "templates/login.html",
 		"portal":          "templates/portal.html",
 		"library_home":    "templates/library_home.html",
@@ -70,8 +71,9 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 			"roleName": roleName,
 			"kb":       kb,
 			"trim":     trimText,
+			"initial":  greetingInitial,
 		})
-		if _, err := base.ParseFS(templatesFS, "templates/layout.html", "templates/chrome.html", "templates/lib_parts.html", "templates/library_entities.html", file); err != nil {
+		if _, err := base.ParseFS(templatesFS, "templates/layout.html", "templates/chrome.html", "templates/lib_parts.html", "templates/library_entities.html", "templates/settings_parts.html", file); err != nil {
 			return nil, err
 		}
 		s.pages[name] = base
@@ -134,9 +136,15 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
 	mux.HandleFunc("GET /scan/status", s.requireAuth(s.handleScanStatus))
-	mux.HandleFunc("GET /settings", s.requireAuth(s.requireRole("admin", s.handleSection("settings"))))
+	mux.HandleFunc("GET /settings", s.requireAuth(s.requireMinRole("moderator", s.handleSection("settings"))))
 	mux.HandleFunc("POST /settings/scan-dirs", s.requireAuth(s.requireRole("admin", s.handleSaveScanPaths)))
 	mux.HandleFunc("POST /settings/clear-library", s.requireAuth(s.requireRole("admin", s.handleClearLibrary)))
+	mux.HandleFunc("GET /settings/profile", s.requireAuth(s.handleProfile))
+	mux.HandleFunc("POST /settings/profile", s.requireAuth(s.handleProfileSave))
+	mux.HandleFunc("POST /settings/profile/password", s.requireAuth(s.handlePasswordChange))
+	mux.HandleFunc("POST /settings/profile/avatar", s.requireAuth(s.handleAvatarUpload))
+	mux.HandleFunc("POST /settings/profile/logout-others", s.requireAuth(s.handleLogoutOthers))
+	mux.HandleFunc("GET /settings/avatar", s.requireAuth(s.handleAvatarServe))
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
@@ -205,7 +213,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, dat
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName, "kb": kb, "trim": trimText})
+	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName, "kb": kb, "trim": trimText, "initial": greetingInitial})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := cloned.ExecuteTemplate(w, "layout", data); err != nil {
 		s.log.Error("render", "page", page, "err", err)
@@ -224,8 +232,8 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 		"IsAdmin":    user != nil && (user.IsRoot || user.Role == "admin"),
 		"Version":    version.String(),
 		"AppName":    "EOPDS",
-		"Theme":      resolveTheme(r),
-		"Lang":       resolveLang(r),
+		"Theme":      resolveThemeFor(r, user),
+		"Lang":       resolveLangFor(r, user),
 		"Langs":      s.i18n.Languages(),
 		"FooterText": "Жизнь должна быть наполнена книгами, которые наполнены жизнью.",
 		"Nav":        "",
@@ -377,19 +385,7 @@ func (s *Server) handleSection(nav string) http.HandlerFunc {
 			}
 		}
 		if nav == "settings" {
-			st := s.getStore()
-			if st != nil {
-				if users, err := st.ListUsers(r.Context()); err != nil {
-					s.log.Warn("settings: list users", "err", err)
-				} else {
-					data["Users"] = users
-				}
-				paths, err := loadScanPaths(r.Context(), st)
-				if err != nil {
-					s.log.Warn("settings: scan paths", "err", err)
-				}
-				data["ScanPaths"] = paths
-			}
+			s.settingsData(r, data)
 		}
 		s.render(w, r, nav, data)
 	}

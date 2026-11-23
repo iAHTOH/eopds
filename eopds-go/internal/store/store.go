@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // postgres driver "pgx"
@@ -53,6 +54,13 @@ type Store interface {
 
 	// SetUserPasswordHash обновляет хеш пароля пользователя по id.
 	SetUserPasswordHash(ctx context.Context, id int64, passwordHash string) error
+
+	// UpdateProfile обновляет редактируемые поля профиля (имя, email,
+	// предпочтения). Логин, роль и allow_adult здесь не меняются.
+	UpdateProfile(ctx context.Context, p ProfileUpdate) error
+
+	// SetUserAvatar устанавливает имя файла аватара ('' — удалить).
+	SetUserAvatar(ctx context.Context, id int64, avatar string) error
 
 	// ImportBook вставляет/обновляет книгу со связями (idempotent).
 	ImportBook(ctx context.Context, b IngestBook) (IngestResult, error)
@@ -151,6 +159,9 @@ type Store interface {
 	GetSessionUser(ctx context.Context, id string) (*User, error)
 	// DeleteSession удаляет сессию (logout).
 	DeleteSession(ctx context.Context, id string) error
+	// DeleteUserSessionsExcept удаляет все сессии пользователя, кроме keepID
+	// ('' — все). Возвращает число удалённых. Для «выйти со всех устройств».
+	DeleteUserSessionsExcept(ctx context.Context, userID int64, keepID string) (int64, error)
 	// PurgeExpiredSessions удаляет истёкшие сессии.
 	PurgeExpiredSessions(ctx context.Context) error
 
@@ -173,13 +184,31 @@ type Stats struct {
 type User struct {
 	ID           int64
 	Username     string
+	DisplayName  string // имя для приветствия ('' — использовать Username)
 	Email        *string
 	PasswordHash string
 	Role         string
 	IsRoot       bool
 	IsActive     bool
+	// Avatar — имя файла аватара в /config/avatars/ ('' — нет аватара).
+	Avatar string
+	// AllowAdult — разрешён показ книг 18+ (правит модератор/админ).
+	AllowAdult bool
+	// Предпочтения по умолчанию ('' — из запроса/сессии).
+	PrefLang     string // ru/en
+	PrefTheme    string // light/dark
+	ReadFont     string // шрифт читалки
+	ReadFontSize int    // размер, % (0 — по умолчанию)
 	// CreatedAt — строка в формате RFC3339 (одинаково для PG/SQLite).
 	CreatedAt string
+}
+
+// NameForGreeting возвращает имя для приветствия: DisplayName, иначе Username.
+func (u *User) NameForGreeting() string {
+	if strings.TrimSpace(u.DisplayName) != "" {
+		return u.DisplayName
+	}
+	return u.Username
 }
 
 // DBStore — реализация Store поверх database/sql.

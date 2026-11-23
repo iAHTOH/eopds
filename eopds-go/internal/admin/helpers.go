@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
+	"github.com/iAHTOH/eopds/eopds-go/internal/store"
 	"github.com/iAHTOH/eopds/eopds-go/internal/version"
 )
 
@@ -165,4 +166,34 @@ func trimText(s string, max int) string {
 		return s
 	}
 	return string(r[:max]) + "…"
+}
+
+// resolveThemeFor — тема с учётом предпочтения пользователя, если cookie нет.
+// Приоритет: ?theme= > cookie > pref_theme пользователя > "dark".
+func resolveThemeFor(r *http.Request, u *store.User) string {
+	if t := r.URL.Query().Get("theme"); isKnownTheme(t) {
+		return t
+	}
+	if c, err := r.Cookie("theme"); err == nil && isKnownTheme(c.Value) {
+		return c.Value
+	}
+	if u != nil && isKnownTheme(u.PrefTheme) {
+		return u.PrefTheme
+	}
+	return resolveTheme(r)
+}
+
+// resolveLangFor — язык с учётом предпочтения пользователя, если cookie нет.
+// Приоритет: ?lang= > cookie > pref_lang > Accept-Language > "en".
+func resolveLangFor(r *http.Request, u *store.User) string {
+	if l := r.URL.Query().Get("lang"); isUILang(l) {
+		return l
+	}
+	if c, err := r.Cookie("lang"); err == nil && c.Value != "" {
+		return c.Value
+	}
+	if u != nil && isUILang(u.PrefLang) {
+		return u.PrefLang
+	}
+	return resolveLang(r)
 }

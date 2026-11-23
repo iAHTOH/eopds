@@ -1196,3 +1196,157 @@ select:focus {
 .ev-warn  { border-left: 3px solid var(--alert-border); background: var(--hint-bg); }
 .ev-error { border-left: 3px solid var(--alert-border); background: var(--alert-bg); }
 .ev-error .ev-msg { color: var(--alert-text); }
+
+/* ==== Настройка: двухколоночный каркас (навигация + контент) ==== */
+.settings-wrap {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .settings-wrap { grid-template-columns: 1fr; }
+}
+.settings-nav {
+  position: sticky;
+  top: 12px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-nav-title {
+  margin: 4px 8px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.settings-nav-item {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 7px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+.settings-nav-item:hover { background: var(--hint-bg); color: var(--accent); }
+.settings-nav-item.active { background: var(--hint-bg); color: var(--accent); font-weight: 600; }
+.settings-nav-group {
+  margin: 10px 8px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+.settings-content { max-width: 720px; }
+
+/* ==== Профиль: аватар и сводка ==== */
+.prof-identity {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 0 4px;
+}
+.prof-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.prof-avatar-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--hint-bg);
+}
+.prof-identity-body { min-width: 0; }
+.prof-greet { margin: 0 0 4px; font-size: 15px; }
+.prof-avatar-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 8px 0 2px;
+  flex-wrap: wrap;
+}
+.avatar-file {
+  display: inline-block;
+  cursor: pointer;
+}
+.avatar-file input[type=file] { display: none; }
+.avatar-upload button { background: none; border: none; padding: 0; cursor: pointer; }
+
+/* Сетка предпочтений (2 колонки) */
+.prof-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 18px;
+}
+@media (max-width: 560px) { .prof-grid { grid-template-columns: 1fr; } }
+
+/* Блок 18+ (read-only) */
+.prof-adult {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+}
+.prof-adult-label { font-size: 14px; }
+
+/* ==== Меню пользователя в шапке (аватар + выпадающее меню) ==== */
+.usermenu { position: relative; display: inline-block; }
+.usermenu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.usermenu-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.usermenu.has-sub:hover .usermenu-sub,
+.usermenu.has-sub:focus-within .usermenu-sub { display: block; }
+/* Аватар */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--hint-bg);
+  color: var(--accent);
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid var(--border);
+}
+.avatar-sm { width: 32px; height: 32px; font-size: 14px; }
+.avatar-initial { user-select: none; }
+.usermenu:hover .avatar { border-color: var(--accent); }
+/* Выпадающее меню — выравниваем по правому краю (не уходит за экран) */
+.usermenu-sub {
+  right: 0;
+  left: auto;
+  min-width: 180px;
+}
+.usermenu-logout { margin: 4px 0 0; padding: 0; }
+.usermenu-logout button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.usermenu-logout button:hover { color: var(--accent); background: var(--hover-bg); }

@@ -1,69 +1,90 @@
 {{define "content"}}
-<div class="card">
-  <header class="card-head">
-    <h1>{{T "nav.settings"}}</h1>
-    <p class="muted">{{T "settings.subtitle"}}</p>
-  </header>
-
-  <h2 class="section-title" id="scan">{{T "settings.scan_dirs"}}</h2>
-  <p class="muted">{{T "settings.scan_dirs_hint"}}</p>
-  <form method="post" action="/settings/scan-dirs" class="scan-dirs">
-    <div id="scan-dirs-list" class="scan-dirs-list">
-      {{range .ScanPaths}}
-      <div class="scan-dir-row">
-        <input name="path" value="{{.}}" placeholder="{{T "settings.scan_example"}}" spellcheck="false">
-        <button type="button" class="icon-btn dir-remove" title="{{T "settings.remove_dir"}}" aria-label="{{T "settings.remove_dir"}}">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 12h14"/></svg>
-        </button>
-      </div>
-      {{end}}
-    </div>
-    <div class="scan-dirs-actions">
-      <button type="button" class="icon-btn" id="add-scan-dir" title="{{T "settings.add_dir"}}" aria-label="{{T "settings.add_dir"}}">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-      <button type="submit" class="btn-primary btn-inline">{{T "settings.save"}}</button>
-    </div>
-  </form>
-
-  <h2 class="section-title">{{T "settings.users"}}</h2>
-  <table class="table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>{{T "users.username"}}</th>
-        <th>{{T "users.email"}}</th>
-        <th>{{T "users.role"}}</th>
-        <th>{{T "users.status"}}</th>
-        <th>{{T "users.created"}}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .Users}}
-      <tr>
-        <td>{{.ID}}</td>
-        <td>{{.Username}}{{if .IsRoot}} <span class="badge badge-root">root</span>{{end}}</td>
-        <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
-        <td><span class="badge badge-{{.Role}}">{{roleName .Role}}</span></td>
-        <td>{{if .IsActive}}<span class="dot dot-on"></span>{{T "users.active"}}{{else}}<span class="dot dot-off"></span>{{T "users.inactive"}}{{end}}</td>
-        <td class="muted">{{.CreatedAt}}</td>
-      </tr>
-      {{else}}
-      <tr><td colspan="6" class="muted">{{T "users.empty"}}</td></tr>
-      {{end}}
-    </tbody>
-  </table>
-
-  <p class="muted">{{T "settings.stub"}}</p>
-
-  <h2 class="section-title" id="db">{{T "settings.danger"}}</h2>
-  <p class="muted">{{T "settings.clear_library_hint"}}</p>
-  <form method="post" action="/settings/clear-library" class="danger-zone"
-        onsubmit="return confirm('{{T "settings.clear_library_confirm"}}');">
-    <input type="hidden" name="confirm" value="yes">
-    <button type="submit" class="btn-primary btn-inline btn-danger">{{T "settings.clear_library"}}</button>
-  </form>
+<div class="settings-wrap">
+  {{template "settings_nav" .}}
+  <div class="card settings-content">
+    {{if eq .Sec "users"}}
+    {{template "settings_users" .}}
+    {{else if eq .Sec "scan"}}
+    {{template "settings_scan" .}}
+    {{else if eq .Sec "general"}}
+    {{template "settings_general" .}}
+    {{else if or (eq .Sec "log") (eq .Sec "updates") (eq .Sec "invites") (eq .Sec "requests")}}
+    {{template "settings_stub" .}}
+    {{else}}
+    {{template "settings_general" .}}
+    {{end}}
+  </div>
 </div>
+{{end}}
+
+{{define "settings_users"}}
+<header class="card-head">
+  <h1>{{T "settings.nav_users"}}</h1>
+  <p class="muted">{{T "settings.users_subtitle"}}</p>
+</header>
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>{{T "users.username"}}</th>
+      <th>{{T "users.email"}}</th>
+      <th>{{T "users.role"}}</th>
+      <th>{{T "users.status"}}</th>
+      <th>{{T "users.created"}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Users}}
+    <tr>
+      <td>{{.ID}}</td>
+      <td>{{.Username}}{{if .IsRoot}} <span class="badge badge-root">root</span>{{end}}</td>
+      <td>{{if .Email}}{{.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
+      <td><span class="badge badge-{{.Role}}">{{roleName .Role}}</span></td>
+      <td>{{if .IsActive}}<span class="dot dot-on"></span>{{T "users.active"}}{{else}}<span class="dot dot-off"></span>{{T "users.inactive"}}{{end}}</td>
+      <td class="muted">{{.CreatedAt}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="6" class="muted">{{T "users.empty"}}</td></tr>
+    {{end}}
+  </tbody>
+</table>
+{{end}}
+
+{{define "settings_scan"}}
+<header class="card-head">
+  <h1>{{T "settings.nav_scan"}}</h1>
+  <p class="muted">{{T "settings.scan_subtitle"}}</p>
+</header>
+
+<h2 class="section-title" id="scan">{{T "settings.scan_dirs"}}</h2>
+<p class="muted">{{T "settings.scan_dirs_hint"}}</p>
+<form method="post" action="/settings/scan-dirs" class="scan-dirs">
+  <div id="scan-dirs-list" class="scan-dirs-list">
+    {{range .ScanPaths}}
+    <div class="scan-dir-row">
+      <input name="path" value="{{.}}" placeholder="{{T "settings.scan_example"}}" spellcheck="false">
+      <button type="button" class="icon-btn dir-remove" title="{{T "settings.remove_dir"}}" aria-label="{{T "settings.remove_dir"}}">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 12h14"/></svg>
+      </button>
+    </div>
+    {{end}}
+  </div>
+  <div class="scan-dirs-actions">
+    <button type="button" class="icon-btn" id="add-scan-dir" title="{{T "settings.add_dir"}}" aria-label="{{T "settings.add_dir"}}">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button type="submit" class="btn-primary btn-inline">{{T "settings.save"}}</button>
+  </div>
+</form>
+<p class="muted small"><a href="/scan">{{T "settings.goto_scan"}}</a></p>
+
+<h2 class="section-title" id="danger">{{T "settings.danger"}}</h2>
+<p class="muted">{{T "settings.clear_library_hint"}}</p>
+<form method="post" action="/settings/clear-library" class="danger-zone"
+      onsubmit="return confirm('{{T "settings.clear_library_confirm"}}');">
+  <input type="hidden" name="confirm" value="yes">
+  <button type="submit" class="btn-primary btn-inline btn-danger">{{T "settings.clear_library"}}</button>
+</form>
 <script>
 (function(){
   var list = document.getElementById('scan-dirs-list');
@@ -87,4 +108,23 @@
   });
 })();
 </script>
+{{end}}
+
+{{define "settings_general"}}
+<header class="card-head">
+  <h1>{{T "settings.nav_general"}}</h1>
+  <p class="muted">{{T "settings.subtitle"}}</p>
+</header>
+<p class="muted">{{T "settings.stub"}}</p>
+{{end}}
+
+{{define "settings_stub"}}
+{{$key := "settings.nav_log"}}
+{{if eq .Sec "updates"}}{{$key = "settings.nav_updates"}}
+{{else if eq .Sec "invites"}}{{$key = "settings.nav_invites"}}
+{{else if eq .Sec "requests"}}{{$key = "settings.nav_requests"}}{{end}}
+<header class="card-head">
+  <h1>{{T $key}}</h1>
+</header>
+<div class="alert alert-info" role="status">{{T "settings.soon"}}</div>
 {{end}}

@@ -66,8 +66,8 @@ func TestApplySQLite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("current version: %v", err)
 	}
-	if v != 4 {
-		t.Errorf("schema_version = %d, want 4", v)
+	if v != 5 {
+		t.Errorf("schema_version = %d, want 5", v)
 	}
 
 	// Ограничение «ровно один root».

@@ -48,6 +48,7 @@ func TestReaderTemplateParses(t *testing.T) {
 		"roleName": roleName,
 		"kb":       func(n int64) string { return "0" },
 		"trim":     func(s string, n int) string { return s },
+		"initial":  greetingInitial,
 	})
 	if _, err := tmpl.ParseFS(templatesFS,
 		"templates/layout.html", "templates/chrome.html", "templates/reader.html"); err != nil {

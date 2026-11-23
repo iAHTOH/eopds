@@ -115,7 +115,7 @@ func (s *Server) handleSaveScanPaths(w http.ResponseWriter, r *http.Request) {
 	s.logEvent(r.Context(), store.EventInfo, "settings.scan_dirs", map[string]string{
 		"count": itoa64(int64(len(paths))),
 	})
-	http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#scan", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?sec=scan&lang="+resolveLang(r)+"#scan", http.StatusSeeOther)
 }
 
 // handleClearLibrary полностью очищает каталог книг (кнопка в настройках).
@@ -126,7 +126,7 @@ func (s *Server) handleClearLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 	// Защита от случайной очистки: требуется подтверждение.
 	if r.PostFormValue("confirm") != "yes" {
-		http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#db", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings?sec=scan&lang="+resolveLang(r)+"#danger", http.StatusSeeOther)
 		return
 	}
 	st := s.getStore()
@@ -147,5 +147,65 @@ func (s *Server) handleClearLibrary(w http.ResponseWriter, r *http.Request) {
 	s.logEvent(r.Context(), store.EventWarn, "lib.clear", map[string]string{
 		"books": itoa64(res.Books),
 	})
-	http.Redirect(w, r, "/settings?lang="+resolveLang(r)+"#db", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?sec=scan&lang="+resolveLang(r)+"#danger", http.StatusSeeOther)
+}
+
+// settingsSectionAllowed сообщает, доступен ли раздел ?sec=<sec> роли.
+// Возвращает канонический sec (если он есть в меню) и доступность.
+func (s *Server) settingsSectionAllowed(u *store.User, sec string) (string, bool) {
+	if sec == "" {
+		// Дефолтный раздел: первый доступный в меню.
+		groups := settingsNav(u)
+		for _, g := range groups {
+			if len(g.Items) > 0 {
+				return g.Items[0].Sec, true
+			}
+		}
+		return "", false
+	}
+	for _, g := range settingsNav(u) {
+		for _, it := range g.Items {
+			if it.Sec == sec {
+				return sec, true
+			}
+		}
+	}
+	return "", false
+}
+
+// settingsData наполняет data для раздела «Настройки» (навигация + контент sec).
+func (s *Server) settingsData(r *http.Request, data map[string]any) {
+	u := currentUser(r)
+	if u == nil {
+		return
+	}
+	st := s.getStore()
+	if st == nil {
+		return
+	}
+
+	sec, ok := s.settingsSectionAllowed(u, r.URL.Query().Get("sec"))
+	// Нет доступа/пустое меню — не должно случаться (роут защищён ролью),
+	// но на всякий случай покажем первую доступную группу.
+	if !ok {
+		sec = "general"
+	}
+	data["Sec"] = sec
+	data["NavGroups"] = settingsNav(u)
+
+	// Данные под конкретный раздел.
+	switch sec {
+	case "users":
+		if users, err := st.ListUsers(r.Context()); err != nil {
+			s.log.Warn("settings: list users", "err", err)
+		} else {
+			data["Users"] = users
+		}
+	case "scan":
+		if paths, err := loadScanPaths(r.Context(), st); err != nil {
+			s.log.Warn("settings: scan paths", "err", err)
+		} else {
+			data["ScanPaths"] = paths
+		}
+	}
 }

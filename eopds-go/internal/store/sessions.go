@@ -24,28 +24,16 @@ func (s *DBStore) CreateSession(ctx context.Context, id string, userID int64, ex
 func (s *DBStore) GetSessionUser(ctx context.Context, id string) (*User, error) {
 	bt := s.boolTrue()
 	q := fmt.Sprintf(
-		"SELECT u.id, u.username, u.email, u.password_hash, u.role, u.is_root, u.is_active, %s "+
-			"FROM sessions s JOIN users u ON u.id = s.user_id "+
+		"SELECT %s FROM sessions s JOIN users u ON u.id = s.user_id "+
 			"WHERE s.id = %s AND s.expires_at > %s AND u.is_active = %s",
-		s.createdAtExpr("u.created_at"), s.ph(1), s.ph(2), bt)
+		s.userSelectCols("u."), s.ph(1), s.ph(2), bt)
 
-	u := &User{}
-	var email sql.NullString
-	var isRoot, isActive any
-	err := s.db.QueryRowContext(ctx, q, id, time.Now().UTC()).Scan(
-		&u.ID, &u.Username, &email, &u.PasswordHash, &u.Role,
-		&isRoot, &isActive, &u.CreatedAt,
-	)
+	u, err := scanUser(s.db.QueryRowContext(ctx, q, id, time.Now().UTC()))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("store: get session user: %w", err)
-	}
-	u.IsRoot = asBool(isRoot)
-	u.IsActive = asBool(isActive)
-	if email.Valid {
-		u.Email = &email.String
 	}
 	return u, nil
 }

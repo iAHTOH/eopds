@@ -189,3 +189,16 @@ func (s *Server) renderLogin(w http.ResponseWriter, r *http.Request, errMsg, use
 	data["Next"] = r.URL.Query().Get("next")
 	s.render(w, r, "login", data)
 }
+
+// requireMinRole пропускает пользователей с ролью не ниже min
+// (rank: reader=1, moderator=2, admin/root=3).
+func (s *Server) requireMinRole(min string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u := currentUser(r)
+		if u == nil || rank(u.Role, u.IsRoot) < rank(min, false) {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	}
+}

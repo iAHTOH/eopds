@@ -1,0 +1,11 @@
+{{define "settings_nav"}}
+<nav class="settings-nav card">
+  <p class="settings-nav-title">{{T "nav.settings"}}</p>
+  {{range .NavGroups}}
+  {{if .Title}}<span class="settings-nav-group">{{T .Title}}</span>{{end}}
+  {{range .Items}}
+  <a href="/settings?sec={{.Sec}}" class="settings-nav-item{{if eq .Sec $.Sec}} active{{end}}">{{T .Label}}</a>
+  {{end}}
+  {{end}}
+</nav>
+{{end}}

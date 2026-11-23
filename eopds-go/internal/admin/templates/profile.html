@@ -1,0 +1,113 @@
+{{define "content"}}
+<div class="card settings-content">
+    <header class="card-head">
+      <h1>{{T "profile.title"}}</h1>
+      <p class="muted">{{T "profile.subtitle"}}</p>
+    </header>
+
+    {{if .FlashErr}}<div class="alert" role="alert">{{.FlashErr}}</div>{{end}}
+    {{if .FlashOK}}<div class="alert alert-ok" role="status">{{.FlashOK}}</div>{{end}}
+
+    {{/* Аватар + краткая сводка */}}
+    <section class="prof-identity">
+      <div class="prof-avatar-wrap">
+        {{if .HasAvatar}}
+        <img class="prof-avatar" src="{{.AvatarURL}}" alt="" width="96" height="96">
+        {{else}}
+        <span class="prof-avatar prof-avatar-initial" aria-hidden="true">{{.Initial}}</span>
+        {{end}}
+      </div>
+      <div class="prof-identity-body">
+        <p class="prof-greet">{{T "profile.greeting_now"}}: <b>{{.GreetName}}</b></p>
+        <p class="muted">@{{.User.Username}} · <span class="badge badge-{{.User.Role}}">{{roleName .User.Role}}</span></p>
+        <div class="prof-avatar-actions">
+          <form method="post" action="/settings/profile/avatar" enctype="multipart/form-data" class="avatar-upload">
+            <label class="avatar-file">
+              <input type="file" name="avatar" accept="image/png,image/jpeg,image/gif" onchange="this.form.submit()">
+              <span class="dl-link">{{T "profile.avatar_upload"}}</span>
+            </label>
+          </form>
+          {{if .HasAvatar}}
+          <form method="post" action="/settings/profile/avatar">
+            <input type="hidden" name="delete" value="1">
+            <button type="submit" class="dl-link">{{T "profile.avatar_remove"}}</button>
+          </form>
+          {{end}}
+        </div>
+        <p class="muted small">{{T "profile.avatar_hint"}}</p>
+      </div>
+    </section>
+
+    {{/* Основные данные */}}
+    <h2 class="section-title" id="main">{{T "profile.section_main"}}</h2>
+    <form method="post" action="/settings/profile" autocomplete="off">
+      <label class="row"><span>{{T "profile.display_name"}}</span>
+        <input name="display_name" value="{{.DisplayName}}" maxlength="100" placeholder="{{T "profile.display_name_ph"}}"></label>
+      <p class="muted small">{{T "profile.display_name_hint"}}</p>
+
+      <label class="row"><span>{{T "profile.email"}}</span>
+        <input type="email" name="email" value="{{.Email}}" placeholder="name@example.com"></label>
+      <p class="muted small">{{T "profile.email_hint"}}</p>
+
+      <h2 class="section-title">{{T "profile.section_prefs"}}</h2>
+      <div class="prof-grid">
+        <label class="row"><span>{{T "profile.pref_lang"}}</span>
+          <select name="pref_lang">
+            <option value="" {{if eq .PrefLang ""}}selected{{end}}>{{T "profile.pref_default"}}</option>
+            <option value="ru" {{if eq .PrefLang "ru"}}selected{{end}}>Русский</option>
+            <option value="en" {{if eq .PrefLang "en"}}selected{{end}}>English</option>
+          </select>
+        </label>
+        <label class="row"><span>{{T "profile.pref_theme"}}</span>
+          <select name="pref_theme">
+            <option value="" {{if eq .PrefTheme ""}}selected{{end}}>{{T "profile.pref_default"}}</option>
+            <option value="light" {{if eq .PrefTheme "light"}}selected{{end}}>{{T "profile.theme_light"}}</option>
+            <option value="dark" {{if eq .PrefTheme "dark"}}selected{{end}}>{{T "profile.theme_dark"}}</option>
+          </select>
+        </label>
+        <label class="row"><span>{{T "profile.read_font"}}</span>
+          <select name="read_font">
+            <option value="" {{if eq .ReadFont ""}}selected{{end}}>{{T "profile.pref_default"}}</option>
+            <option value="serif" {{if eq .ReadFont "serif"}}selected{{end}}>{{T "profile.font_serif"}}</option>
+            <option value="sans" {{if eq .ReadFont "sans"}}selected{{end}}>{{T "profile.font_sans"}}</option>
+            <option value="mono" {{if eq .ReadFont "mono"}}selected{{end}}>{{T "profile.font_mono"}}</option>
+          </select>
+        </label>
+        <label class="row"><span>{{T "profile.read_font_size"}}</span>
+          <input type="number" name="read_font_size" min="50" max="300" step="10" value="{{.ReadFontSize}}" placeholder="100"></label>
+      </div>
+      <button type="submit" class="btn-primary btn-inline">{{T "profile.save"}}</button>
+    </form>
+
+    {{/* 18+ */}}
+    <h2 class="section-title" id="adult">{{T "profile.adult_title"}}</h2>
+    <div class="prof-adult">
+      <span class="prof-adult-label">{{T "profile.adult_label"}}</span>
+      {{if .AllowAdult}}
+      <span class="badge badge-admin">{{T "profile.adult_allowed"}}</span>
+      {{else}}
+      <span class="badge badge-reader">{{T "profile.adult_denied"}}</span>
+      {{end}}
+    </div>
+    <p class="muted small">{{T "profile.adult_hint"}}</p>
+
+    {{/* Смена пароля */}}
+    <h2 class="section-title" id="password">{{T "profile.section_password"}}</h2>
+    <form method="post" action="/settings/profile/password" autocomplete="off">
+      <label class="row"><span>{{T "profile.old_password"}}</span>
+        <input type="password" name="old_password" required autocomplete="current-password"></label>
+      <label class="row"><span>{{T "profile.new_password"}}</span>
+        <input type="password" name="new_password" required minlength="8" autocomplete="new-password"></label>
+      <label class="row"><span>{{T "profile.confirm_password"}}</span>
+        <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password"></label>
+      <button type="submit" class="btn-primary btn-inline">{{T "profile.change_password"}}</button>
+    </form>
+
+    {{/* Безопасность: выход со всех устройств */}}
+    <h2 class="section-title" id="security">{{T "profile.section_security"}}</h2>
+    <p class="muted small">{{T "profile.logout_others_hint"}}</p>
+    <form method="post" action="/settings/profile/logout-others">
+      <button type="submit" class="btn-primary btn-inline">{{T "profile.logout_others"}}</button>
+    </form>
+</div>
+{{end}}

@@ -1,7 +1,7 @@
 {{define "content"}}
 <div class="card">
   <h3 style="text-align:center;">
-    {{T "home.greeting"}} {{if .User}}{{.User.Username}}{{else}}{{T "home.guest"}}{{end}} !
+    {{T "home.greeting"}} {{if .User}}{{.User.NameForGreeting}}{{else}}{{T "home.guest"}}{{end}} !
   </h3>
   <p style="text-align:center;">
     <span class="img-frame"><img src="/static/img/eopds_homelib.webp" alt=""></span>
