@@ -83,35 +83,13 @@ a:hover {
   color: var(--muted);
 }
 
-.mainnav {
-  display: flex;
-  gap: 4px;
-  flex: 1 1 auto;
-}
-
-.mainnav a {
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--muted);
-  transition: color .12s, background-color .12s;
-}
-
-.mainnav a:hover {
-  color: var(--text);
-  background: var(--hover-bg);
-}
-
-.mainnav a.active {
-  color: var(--accent);
-  background: var(--active-bg);
-}
-
 .topbar-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
+  /* Прижимаем группу действий к правому краю шапки (между брендом и ней — распорка). */
+  margin-left: auto;
 }
 
 /* Версия в шапке (перед переключателем темы). */
@@ -407,6 +385,70 @@ select:focus {
   margin: 8px 0 16px;
 }
 
+/* Toggle switch (переключатель «Полный скан») рядом с кнопкой запуска. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.switch-slider {
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  transition: background-color .15s, border-color .15s;
+}
+
+.switch-slider::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform .18s, background-color .15s;
+}
+
+.switch input:checked + .switch-slider {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch input:checked + .switch-slider::after {
+  transform: translateX(18px);
+  background: var(--btn-text);
+}
+
+.switch input:focus-visible + .switch-slider {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.switch:hover .switch-label {
+  color: var(--text);
+}
+
 .small {
   font-size: 12px;
 }
@@ -582,10 +624,6 @@ select:focus {
 @media (max-width: 720px) {
   .stats {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .mainnav {
-    display: none;
   }
 }
 
@@ -947,7 +985,7 @@ select:focus {
 }
 .shelf-remove-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--hover-bg); }
 /* Подшапка: поиск + категории.
-   Кнопки поиска и меню — в едином стиле с меню шапки (.mainnav a):
+   Кнопки поиска и меню — в едином стиле:
    приглушённый текст на тёмном фоне, оранжевый при наведении/активе. */
 .subbar {
   background: var(--card);

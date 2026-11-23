@@ -10,24 +10,26 @@ import (
 var defaultScanExts = []string{".fb2", ".fb2.zip"}
 
 // handleScanRun запускает сканирование каталогов из настроек (scan.paths)
-// в ФОНОВОЙ горутине и сразу возвращает пользователя на /scan.
+// в ФОНОВОЙ горутине и сразу возвращает пользователя на страницу «Настройки»
+// (раздел «Сканирование»).
 //
 // Скан не привязан к HTTP-запросу: браузер можно закрыть, скан продолжит
 // работу (может длиться часы). Прогресс отдаётся через GET /scan/status.
 func (s *Server) handleScanRun(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	fullRescan := r.PostFormValue("full") == "1"
+	back := "/settings?sec=scan&lang=" + resolveLang(r) + "#run"
 
 	st := s.getStore()
 	if st == nil {
-		http.Redirect(w, r, "/scan", http.StatusSeeOther)
+		http.Redirect(w, r, back, http.StatusSeeOther)
 		return
 	}
 
 	paths, err := loadScanPaths(r.Context(), st)
 	if err != nil {
 		s.log.Error("scan: load paths", "err", err)
-		http.Redirect(w, r, "/scan", http.StatusSeeOther)
+		http.Redirect(w, r, back, http.StatusSeeOther)
 		return
 	}
 	var roots []string
@@ -37,13 +39,13 @@ func (s *Server) handleScanRun(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(roots) == 0 {
-		http.Redirect(w, r, "/scan", http.StatusSeeOther)
+		http.Redirect(w, r, back, http.StatusSeeOther)
 		return
 	}
 
 	// Атомарный старт: если уже идёт — просто вернуть на страницу.
 	if !s.scan.begin() {
-		http.Redirect(w, r, "/scan", http.StatusSeeOther)
+		http.Redirect(w, r, back, http.StatusSeeOther)
 		return
 	}
 
@@ -54,7 +56,7 @@ func (s *Server) handleScanRun(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("сканирование запущено (фон)", "roots", roots, "user", uid, "full_rescan", fullRescan)
 	go s.runScanBg(roots, uid, fullRescan)
 
-	http.Redirect(w, r, "/scan", http.StatusSeeOther)
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
 // formatDuration форматирует длительность по-человечески (ч/м/с).

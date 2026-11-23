@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
 	"github.com/iAHTOH/eopds/eopds-go/internal/store"
@@ -25,7 +27,7 @@ type ScanSummary struct {
 	Created      int64  `json:"created"`       // добавлено
 	Updated      int64  `json:"updated"`       // обновлено
 	ImportErrors int64  `json:"import_errors"` // ошибок импорта
-	Skipped      int64  `json:"skipped"`       // пропущено (неизменившиеся)
+	Skipped      int64  `json:"skipped"`       // пропущено (не изменились)
 }
 
 // loadScanSummary возвращает итог последнего сканирования.
@@ -112,100 +114,117 @@ func (s *Server) handleSaveScanPaths(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.log.Info("каталоги сканирования сохранены", "count", len(paths))
-	s.logEvent(r.Context(), store.EventInfo, "settings.scan_dirs", map[string]string{
-		"count": itoa64(int64(len(paths))),
-	})
 	http.Redirect(w, r, "/settings?sec=scan&lang="+resolveLang(r)+"#scan", http.StatusSeeOther)
 }
 
-// handleClearLibrary полностью очищает каталог книг (кнопка в настройках).
-func (s *Server) handleClearLibrary(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
-		return
+// settingsSectionAllowed определяет активный раздел «Настроек» (?sec=),
+// проверяя право доступа текущего пользователя. Неизвестный или запрещённый
+// раздел заменяется первым доступным (или "general").
+func settingsSectionAllowed(u *store.User, want string) string {
+	groups := settingsNav(u)
+	allowed := make(map[string]bool, 8)
+	var first string
+	for _, g := range groups {
+		for _, it := range g.Items {
+			allowed[it.Sec] = true
+			if first == "" {
+				first = it.Sec
+			}
+		}
 	}
-	// Защита от случайной очистки: требуется подтверждение.
-	if r.PostFormValue("confirm") != "yes" {
-		http.Redirect(w, r, "/settings?sec=scan&lang="+resolveLang(r)+"#danger", http.StatusSeeOther)
-		return
+	if want != "" && allowed[want] {
+		return want
 	}
+	if first != "" {
+		return first
+	}
+	return "general"
+}
+
+// settingsData наполняет данные шаблона раздела «Настроек»:
+// активный раздел, сгруппированное меню и содержимое выбранного раздела.
+func (s *Server) settingsData(r *http.Request, data map[string]any) {
+	u := currentUser(r)
+	sec := settingsSectionAllowed(u, r.URL.Query().Get("sec"))
+	data["Sec"] = sec
+	data["NavGroups"] = settingsNav(u)
+	if u != nil {
+		data["IsAdmin"] = rank(u.Role, u.IsRoot) >= 3
+	}
+
 	st := s.getStore()
 	if st == nil {
-		http.Redirect(w, r, "/settings", http.StatusSeeOther)
 		return
 	}
-	res, err := st.ClearLibrary(r.Context())
+	ctx := r.Context()
+
+	switch sec {
+	case "users":
+		users, err := st.ListUsers(ctx)
+		if err != nil {
+			s.log.Warn("settings: list users", "err", err)
+		}
+		data["Users"] = users
+
+	case "scan":
+		paths, err := loadScanPaths(ctx, st)
+		if err != nil {
+			s.log.Warn("settings: scan paths", "err", err)
+		}
+		data["ScanPaths"] = paths
+
+		if sum, ok := loadScanSummary(ctx, st); ok {
+			data["ScanStatus"] = "done"
+			data["Found"] = sum.Found
+			data["Created"] = sum.Created
+			data["Updated"] = sum.Updated
+			data["Parsed"] = sum.Found - sum.ImportErrors
+			data["Errors"] = sum.ImportErrors
+			data["Skipped"] = sum.Skipped
+			if t, perr := time.Parse(time.RFC3339, sum.StartedAt); perr == nil {
+				data["StartedAt"] = t.Local().Format("02.01.2006 15:04:05")
+			} else {
+				data["StartedAt"] = sum.StartedAt
+			}
+			data["Elapsed"] = formatDuration(time.Duration(sum.ElapsedMS) * time.Millisecond)
+		}
+	}
+}
+
+// handleClearLibrary очищает каталог книг (опасная зона раздела «Сканирование»).
+// Требует подтверждения (confirm=yes); после очистки сбрасывает итог сканирования.
+func (s *Server) handleClearLibrary(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	back := "/settings?sec=scan&lang=" + resolveLang(r) + "#danger"
+	if r.PostFormValue("confirm") != "yes" {
+		http.Redirect(w, r, back, http.StatusSeeOther)
+		return
+	}
+
+	st := s.getStore()
+	if st == nil {
+		http.Redirect(w, r, back, http.StatusSeeOther)
+		return
+	}
+	ctx := r.Context()
+
+	res, err := st.ClearLibrary(ctx)
 	if err != nil {
 		s.log.Error("settings: clear library", "err", err)
 		http.Error(w, "clear failed", http.StatusInternalServerError)
 		return
 	}
-	_ = st.SetSetting(r.Context(), scanLastKey, "", 0) // сброс итога последнего скана
-	s.log.Info("библиотека очищена",
-		"books", res.Books, "authors", res.Authors,
-		"series", res.Series, "genres", res.Genres, "catalogs", res.Catalogs)
-	s.logEvent(r.Context(), store.EventWarn, "lib.clear", map[string]string{
-		"books": itoa64(res.Books),
+
+	var uid int64
+	if u := currentUser(r); u != nil {
+		uid = u.ID
+	}
+	if err := st.SetSetting(ctx, scanLastKey, "", uid); err != nil {
+		s.log.Warn("settings: reset scan summary", "err", err)
+	}
+	s.logEvent(ctx, store.EventWarn, "lib.clear", map[string]string{
+		"books": strconv.FormatInt(res.Books, 10),
 	})
-	http.Redirect(w, r, "/settings?sec=scan&lang="+resolveLang(r)+"#danger", http.StatusSeeOther)
-}
-
-// settingsSectionAllowed сообщает, доступен ли раздел ?sec=<sec> роли.
-// Возвращает канонический sec (если он есть в меню) и доступность.
-func (s *Server) settingsSectionAllowed(u *store.User, sec string) (string, bool) {
-	if sec == "" {
-		// Дефолтный раздел: первый доступный в меню.
-		groups := settingsNav(u)
-		for _, g := range groups {
-			if len(g.Items) > 0 {
-				return g.Items[0].Sec, true
-			}
-		}
-		return "", false
-	}
-	for _, g := range settingsNav(u) {
-		for _, it := range g.Items {
-			if it.Sec == sec {
-				return sec, true
-			}
-		}
-	}
-	return "", false
-}
-
-// settingsData наполняет data для раздела «Настройки» (навигация + контент sec).
-func (s *Server) settingsData(r *http.Request, data map[string]any) {
-	u := currentUser(r)
-	if u == nil {
-		return
-	}
-	st := s.getStore()
-	if st == nil {
-		return
-	}
-
-	sec, ok := s.settingsSectionAllowed(u, r.URL.Query().Get("sec"))
-	// Нет доступа/пустое меню — не должно случаться (роут защищён ролью),
-	// но на всякий случай покажем первую доступную группу.
-	if !ok {
-		sec = "general"
-	}
-	data["Sec"] = sec
-	data["NavGroups"] = settingsNav(u)
-
-	// Данные под конкретный раздел.
-	switch sec {
-	case "users":
-		if users, err := st.ListUsers(r.Context()); err != nil {
-			s.log.Warn("settings: list users", "err", err)
-		} else {
-			data["Users"] = users
-		}
-	case "scan":
-		if paths, err := loadScanPaths(r.Context(), st); err != nil {
-			s.log.Warn("settings: scan paths", "err", err)
-		} else {
-			data["ScanPaths"] = paths
-		}
-	}
+	s.log.Info("библиотека очищена", "books", res.Books, "authors", res.Authors)
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }

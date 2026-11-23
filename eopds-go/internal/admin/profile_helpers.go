@@ -29,7 +29,7 @@ func (s *Server) flash(w http.ResponseWriter, r *http.Request, page, kind, key s
 	})
 }
 
-// takeFlash читает и «съедает» ключ сообщения из cookie ('' если нет)
+// takeFlash читает и «съедает» ключ сообщения из cookie («» если нет)
 // и сбрасывает cookie в ответе w.
 func takeFlash(w http.ResponseWriter, r *http.Request, page, kind string) string {
 	name := "flash_" + page + "_" + kind

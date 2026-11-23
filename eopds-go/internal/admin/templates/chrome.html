@@ -9,17 +9,6 @@
       </span>
     </a>
 
-    {{if .User}}
-    <nav class="mainnav">
-      <a href="/dashboard" class="{{if eq .Nav "dashboard"}}active{{end}}">{{T "nav.dashboard"}}</a>
-      <a href="/library?lang={{.Lang}}" class="{{if eq .Nav "library"}}active{{end}}">{{T "nav.library"}}</a>
-      {{if .IsAdmin}}
-      <a href="/scan" class="{{if eq .Nav "scan"}}active{{end}}">{{T "nav.scan"}}</a>
-      <a href="/settings" class="{{if eq .Nav "settings"}}active{{end}}">{{T "nav.settings"}}</a>
-      {{end}}
-    </nav>
-    {{end}}
-
     <div class="topbar-actions">
       <a class="topbar-version" href="https://eopds.ru/" target="_blank" rel="noopener">{{T "app.name"}} · v{{.Version}}</a>
       {{if eq .Theme "dark"}}

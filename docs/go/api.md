@@ -18,9 +18,9 @@ read-only эндпоинты доступны без неё.
 | GET | `/library/book/{id}/html` | тело книги, отрендеренное в HTML-фрагмент ([reader.md](reader.md)) |
 | POST | `/library/book/{id}/progress` | сохранение позиции чтения, `204` ([reader.md](reader.md)) |
 | POST | `/settings/clear-library` | очистка библиотеки (admin); `confirm=yes` → `303` |
-| GET | `/scan` | страница сканирования (форма запуска, каталоги, плашка прогресса) |
-| POST | `/scan/run` | запуск сканирования в фоне (admin); сразу `303` на `/scan`; `full=1` — полный перескан |
+| POST | `/scan/run` | запуск сканирования в фоне (admin); сразу `303` на `/settings?sec=scan#run`; `full=1` — полный перескан |
 | GET | `/scan/status` | JSON-статус фонового сканирования (для поллинга) |
+| GET | `/settings?sec=scan` | раздел настроек «Сканирование» (каталоги, прогресс/итог, запуск, опасная зона) — admin |
 | GET | `/dashboard` | дашборд; блок «Сообщения системы» — для admin/root и moderator ([system-events.md](system-events.md)) |
 | GET | `/dashboard/events/download` | скачать журнал сообщений системы (`.log`, до `events.max_rows` строк); admin/root, moderator |
 | GET | `/library/suggest` | JSON-подсказки живого поиска (`?q=&by=title\|author\|series`) |
@@ -31,7 +31,8 @@ read-only эндпоинты доступны без неё.
 
 ## `GET /scan/status`
 
-Статус фонового сканирования (опрос для плашки прогресса на `/scan`).
+Статус фонового сканирования (опрос для плашки прогресса в разделе
+`/settings?sec=scan`).
 Требует авторизации (`eopds_session`). Ответ — всегда `200` JSON.
 
 ```json
@@ -69,8 +70,8 @@ read-only эндпоинты доступны без неё.
 
 ## `POST /scan/run`
 
-Запуск сканирования в фоне (только admin). Сразу отвечает `303` на `/scan`;
-прогресс опрашивается через `/scan/status`.
+Запуск сканирования в фоне (только admin). Сразу отвечает `303` на
+`/settings?sec=scan#run`; прогресс опрашивается через `/scan/status`.
 
 Параметры формы (application/x-www-form-urlencoded):
 

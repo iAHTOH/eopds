@@ -56,7 +56,6 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		"library_genres":  "templates/library_genres.html",
 		"library_book":    "templates/library_book.html",
 		"reader":          "templates/reader.html",
-		"scan":            "templates/scan.html",
 		"settings":        "templates/settings.html",
 		"profile":         "templates/profile.html",
 		"login":           "templates/login.html",
@@ -133,7 +132,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /opds/genres", s.handleOPDSGenres)
 	mux.HandleFunc("GET /library/shelf", s.requireAuth(s.handleLibraryShelf))
 	mux.HandleFunc("POST /library/shelf/{id}/remove", s.requireAuth(s.handleShelfRemove))
-	mux.HandleFunc("GET /scan", s.requireAuth(s.handleSection("scan")))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
 	mux.HandleFunc("GET /scan/status", s.requireAuth(s.handleScanStatus))
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireMinRole("moderator", s.handleSection("settings"))))
@@ -363,27 +361,6 @@ func (s *Server) handleSection(nav string) http.HandlerFunc {
 		}
 		data := s.baseData(r)
 		data["Nav"] = nav
-		if nav == "scan" {
-			if st := s.getStore(); st != nil {
-				if paths, err := loadScanPaths(r.Context(), st); err == nil {
-					data["ScanPaths"] = paths
-				}
-				// Итог последнего скана (для блока результата после перезагрузки).
-				if sum, ok := loadScanSummary(r.Context(), st); ok {
-					data["ScanStatus"] = "done"
-					data["Found"] = sum.Found
-					data["Created"] = sum.Created
-					data["Updated"] = sum.Updated
-					data["Parsed"] = sum.Found - sum.ImportErrors
-					data["Errors"] = sum.ImportErrors
-					data["Skipped"] = sum.Skipped
-					if t, terr := time.Parse(time.RFC3339, sum.StartedAt); terr == nil {
-						data["StartedAt"] = t.Local().Format("02.01.2006 15:04:05")
-					}
-					data["Elapsed"] = formatDuration(time.Duration(sum.ElapsedMS) * time.Millisecond)
-				}
-			}
-		}
 		if nav == "settings" {
 			s.settingsData(r, data)
 		}

@@ -56,6 +56,34 @@
   <p class="muted">{{T "settings.scan_subtitle"}}</p>
 </header>
 
+<!-- Плашка прогресса фонового сканирования (управляется через /scan/status). -->
+<div id="scan-progress" class="alert alert-info" role="status" hidden>
+  <strong id="sp-title">Сканирование идёт…</strong>
+  <span id="sp-dots"></span>
+  <div class="scan-stats">
+    <span>{{T "scan.found"}}: <b id="sp-found">0</b></span>
+    <span>{{T "scan.created"}}: <b id="sp-created">0</b></span>
+    <span>{{T "scan.updated"}}: <b id="sp-updated">0</b></span>
+    <span>{{T "scan.errors"}}: <b id="sp-errors">0</b></span>
+    <span>{{T "scan.skipped"}}: <b id="sp-skipped">0</b></span>
+    <span class="muted">⏱ <b id="sp-elapsed">0</b></span>
+  </div>
+  <p class="small muted" style="margin:.4rem 0 0">Процесс идёт в фоне — можно закрыть страницу, сканирование продолжится.</p>
+</div>
+
+{{if eq .ScanStatus "done"}}
+<div class="alert alert-ok" role="status">
+  {{T "scan.done"}}: {{T "scan.found"}} {{.Found}} ({{T "scan.created"}} {{.Created}}, {{T "scan.updated"}} {{.Updated}}), {{T "scan.parsed"}} {{.Parsed}}{{if .Errors}}, {{T "scan.errors"}} {{.Errors}}{{end}}{{if .Skipped}}, {{T "scan.skipped"}} {{.Skipped}}{{end}}.
+  <br><span class="small muted">{{T "dash.scan_start"}}: {{.StartedAt}} · {{T "dash.scan_duration"}}: {{.Elapsed}}</span>
+</div>
+{{else if eq .ScanStatus "no_paths"}}
+<div class="alert" role="alert">{{T "scan.no_paths"}}</div>
+{{else if eq .ScanStatus "busy"}}
+<div class="alert" role="alert">{{T "scan.busy"}}</div>
+{{else if eq .ScanStatus "error"}}
+<div class="alert" role="alert">{{T "scan.error"}}</div>
+{{end}}
+
 <h2 class="section-title" id="scan">{{T "settings.scan_dirs"}}</h2>
 <p class="muted">{{T "settings.scan_dirs_hint"}}</p>
 <form method="post" action="/settings/scan-dirs" class="scan-dirs">
@@ -76,7 +104,19 @@
     <button type="submit" class="btn-primary btn-inline">{{T "settings.save"}}</button>
   </div>
 </form>
-<p class="muted small"><a href="/scan">{{T "settings.goto_scan"}}</a></p>
+
+{{if .IsAdmin}}
+<h2 class="section-title" id="run">{{T "scan.run"}}</h2>
+<form method="post" action="/scan/run" class="scan-run" id="scan-form">
+  <button type="submit" class="btn-primary btn-inline" id="scan-btn">{{T "scan.run"}}</button>
+  <label class="switch" title="{{T "scan.full"}}">
+    <input type="checkbox" name="full" value="1" id="scan-full">
+    <span class="switch-slider" aria-hidden="true"></span>
+    <span class="switch-label">{{T "scan.full"}}</span>
+  </label>
+</form>
+<p class="muted small">{{T "scan.note"}}</p>
+{{end}}
 
 <h2 class="section-title" id="danger">{{T "settings.danger"}}</h2>
 <p class="muted">{{T "settings.clear_library_hint"}}</p>
@@ -85,27 +125,77 @@
   <input type="hidden" name="confirm" value="yes">
   <button type="submit" class="btn-primary btn-inline btn-danger">{{T "settings.clear_library"}}</button>
 </form>
+
 <script>
 (function(){
+  // Управление списком каталогов.
   var list = document.getElementById('scan-dirs-list');
   var add = document.getElementById('add-scan-dir');
-  if (!add || !list) return;
-  add.addEventListener('click', function(){
-    var row = list.querySelector('.scan-dir-row');
-    if (!row) return;
-    var clone = row.cloneNode(true);
-    var input = clone.querySelector('input');
-    if (input) input.value = '';
-    list.appendChild(clone);
-    if (input) input.focus();
-  });
-  list.addEventListener('click', function(e){
-    var btn = e.target.closest('.dir-remove');
-    if (!btn) return;
-    var rows = list.querySelectorAll('.scan-dir-row');
-    if (rows.length > 1) { btn.closest('.scan-dir-row').remove(); }
-    else { var i = btn.closest('.scan-dir-row').querySelector('input'); if (i) i.value = ''; }
-  });
+  if (add && list) {
+    add.addEventListener('click', function(){
+      var row = list.querySelector('.scan-dir-row');
+      if (!row) return;
+      var clone = row.cloneNode(true);
+      var input = clone.querySelector('input');
+      if (input) input.value = '';
+      list.appendChild(clone);
+      if (input) input.focus();
+    });
+    list.addEventListener('click', function(e){
+      var btn = e.target.closest('.dir-remove');
+      if (!btn) return;
+      var rows = list.querySelectorAll('.scan-dir-row');
+      if (rows.length > 1) { btn.closest('.scan-dir-row').remove(); }
+      else { var i = btn.closest('.scan-dir-row').querySelector('input'); if (i) i.value = ''; }
+    });
+  }
+
+  // Опрос статуса фонового сканирования.
+  var box = document.getElementById('scan-progress');
+  var btn = document.getElementById('scan-btn');
+  if (!box) return;
+  var startedAt = 0, pollTimer = null;
+
+  function fmt(ms) {
+    var s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    if (h) return h + ' ч ' + m + ' мин ' + sec + ' с';
+    if (m) return m + ' мин ' + sec + ' с';
+    return sec + ' с';
+  }
+  function set(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+
+  function render(st) {
+    if (st.running) {
+      box.hidden = false;
+      if (!startedAt) startedAt = Date.parse(st.started_at || '') || Date.now();
+      set('sp-found', st.found || 0);
+      set('sp-created', st.created || 0);
+      set('sp-updated', st.updated || 0);
+      set('sp-errors', st.errors || 0);
+      set('sp-skipped', st.skipped || 0);
+      set('sp-elapsed', fmt(Date.now() - startedAt));
+      if (btn) { btn.disabled = true; btn.classList.add('is-busy'); }
+      set('sp-dots', '.'.repeat((Math.floor((Date.now() - startedAt) / 700) % 3) + 1));
+    } else {
+      box.hidden = true;
+      if (btn) { btn.disabled = false; btn.classList.remove('is-busy'); }
+      if (startedAt) {
+        startedAt = 0;
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        location.reload();
+      }
+    }
+  }
+
+  function poll() {
+    fetch('/scan/status', {credentials: 'same-origin', headers: {'Accept': 'application/json'}})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (st) { if (st) render(st); })
+      .catch(function () {});
+  }
+
+  pollTimer = setInterval(poll, 2000);
+  poll();
 })();
 </script>
 {{end}}
