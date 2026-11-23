@@ -9,6 +9,24 @@
       </span>
     </a>
 
+    {{if .User}}
+    <div class="topbar-search">
+      <form class="searchbar" method="get" action="/library/search" role="search" autocomplete="off">
+        <input type="search" name="q" value="{{.Query}}" placeholder="{{T "search.ph_title"}}" aria-label="{{T "search.placeholder"}}" minlength="1">
+        <input type="hidden" name="by" value="title">
+        <div class="suggest" hidden aria-live="polite"></div>
+        <div class="catnav-item has-sub search-type">
+          <button type="submit" class="search-submit">{{T "search.submit"}}</button>
+          <div class="catnav-sub search-type-menu" role="menu">
+            <button type="button" role="menuitem" data-by="title" data-ph="{{T "search.ph_title"}}">{{T "search.by_title"}}</button>
+            <button type="button" role="menuitem" data-by="author" data-ph="{{T "search.ph_author"}}">{{T "search.by_author"}}</button>
+            <button type="button" role="menuitem" data-by="series" data-ph="{{T "search.ph_series"}}">{{T "search.by_series"}}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+    {{end}}
+
     <div class="topbar-actions">
       <a class="topbar-version" href="https://eopds.ru/" target="_blank" rel="noopener">{{T "app.name"}} · v{{.Version}}</a>
       {{if eq .Theme "dark"}}
@@ -70,19 +88,6 @@
 {{if .User}}
 <div class="subbar">
   <div class="subbar-inner">
-    <form class="searchbar" method="get" action="/library/search" role="search" autocomplete="off">
-      <input type="search" name="q" value="{{.Query}}" placeholder="{{T "search.ph_title"}}" aria-label="{{T "search.placeholder"}}" minlength="1">
-      <input type="hidden" name="by" value="title">
-      <div class="suggest" hidden aria-live="polite"></div>
-      <div class="catnav-item has-sub search-type">
-        <button type="submit" class="search-submit">{{T "search.submit"}}</button>
-        <div class="catnav-sub search-type-menu" role="menu">
-          <button type="button" role="menuitem" data-by="title" data-ph="{{T "search.ph_title"}}">{{T "search.by_title"}}</button>
-          <button type="button" role="menuitem" data-by="author" data-ph="{{T "search.ph_author"}}">{{T "search.by_author"}}</button>
-          <button type="button" role="menuitem" data-by="series" data-ph="{{T "search.ph_series"}}">{{T "search.by_series"}}</button>
-        </div>
-      </div>
-    </form>
     <nav class="catnav">
       <a href="/library" class="catnav-item{{if eq $.LibSection ""}} active{{end}}">{{T "cat.catalogs"}}</a>
       <div class="catnav-item has-sub{{if eq $.LibSection "books"}} active{{end}}">

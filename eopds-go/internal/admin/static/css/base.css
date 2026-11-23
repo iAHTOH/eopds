@@ -88,8 +88,28 @@ a:hover {
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
-  /* Прижимаем группу действий к правому краю шапки (между брендом и ней — распорка). */
+  /* Прижимаем группу действий к правому краю шапки. */
   margin-left: auto;
+}
+
+/* Поиск в шапке (по центру, между брендом и действиями). */
+.topbar-search {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+.topbar-search .searchbar {
+  width: 100%;
+  min-width: 0;
+  max-width: 520px;
+  flex: 0 1 520px;
+}
+/* На узких экранах поиск в шапке скрываем, чтобы не теснить
+   бренд и меню аккаунта (как ранее скрывалось горизонтальное меню). */
+@media (max-width: 760px) {
+  .topbar-search { display: none; }
 }
 
 /* Версия в шапке (перед переключателем темы). */
@@ -984,9 +1004,8 @@ select:focus {
   font-size: 13px;
 }
 .shelf-remove-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--hover-bg); }
-/* Подшапка: поиск + категории.
-   Кнопки поиска и меню — в едином стиле:
-   приглушённый текст на тёмном фоне, оранжевый при наведении/активе. */
+/* Подшапка: меню категорий библиотеки (поиск вынесен в шапку).
+   Кнопки меню — приглушённый текст на тёмном фоне, оранжевый при наведении/активе. */
 .subbar {
   background: var(--card);
   border-bottom: 1px solid var(--border);
@@ -999,6 +1018,7 @@ select:focus {
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* --- Поиск --- */
