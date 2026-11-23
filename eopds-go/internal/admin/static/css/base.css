@@ -112,15 +112,6 @@ a:hover {
   .topbar-search { display: none; }
 }
 
-/* Версия в шапке (перед переключателем темы). */
-.topbar-version {
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.topbar-version:hover { color: var(--accent); }
-@media (max-width: 640px) { .topbar-version { display: none; } }
-
 /* Выбор языка */
 .lang-picker {
   display: flex;
