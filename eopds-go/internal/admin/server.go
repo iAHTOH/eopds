@@ -105,31 +105,35 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /logout", s.handleLogout)
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
 	mux.HandleFunc("GET /dashboard/events/download", s.requireAuth(s.handleEventsDownload))
-	mux.HandleFunc("GET /library", s.requireAuth(s.handleLibraryIndex))
-	mux.HandleFunc("GET /library/books", s.requireAuth(s.handleLibraryBooks))
-	mux.HandleFunc("GET /library/catalog/{id}", s.requireAuth(s.handleLibraryCatalog))
-	mux.HandleFunc("GET /library/authors", s.requireAuth(s.handleLibraryAuthors))
-	mux.HandleFunc("GET /library/series", s.requireAuth(s.handleLibrarySeries))
-	mux.HandleFunc("GET /library/genres", s.requireAuth(s.handleLibraryGenres))
-	mux.HandleFunc("GET /library/book/{id}", s.requireAuth(s.handleLibraryBook))
-	mux.HandleFunc("GET /library/book/{id}/cover", s.requireAuth(s.handleBookCover))
+	// Публичный просмотр библиотеки доступен и гостям (без входа). Загрузка
+	// файлов, читалка и полка — только для авторизованных (ниже).
+	mux.HandleFunc("GET /library", s.optionalAuth(s.handleLibraryIndex))
+	mux.HandleFunc("GET /library/books", s.optionalAuth(s.handleLibraryBooks))
+	mux.HandleFunc("GET /library/catalog/{id}", s.optionalAuth(s.handleLibraryCatalog))
+	mux.HandleFunc("GET /library/authors", s.optionalAuth(s.handleLibraryAuthors))
+	mux.HandleFunc("GET /library/series", s.optionalAuth(s.handleLibrarySeries))
+	mux.HandleFunc("GET /library/genres", s.optionalAuth(s.handleLibraryGenres))
+	mux.HandleFunc("GET /library/book/{id}", s.optionalAuth(s.handleLibraryBook))
+	mux.HandleFunc("GET /library/book/{id}/cover", s.optionalAuth(s.handleBookCover))
+	mux.HandleFunc("GET /library/search", s.optionalAuth(s.handleLibrarySearch))
+	mux.HandleFunc("GET /library/suggest", s.optionalAuth(s.handleLibrarySuggest))
+	mux.HandleFunc("GET /library/new", s.optionalAuth(s.handleLibraryNew))
+	// Скачивание, чтение и прогресс — только для авторизованных.
 	mux.HandleFunc("GET /library/book/{id}/download", s.requireAuth(s.handleBookDownload))
 	mux.HandleFunc("GET /library/book/{id}/read", s.requireAuth(s.handleBookRead))
 	mux.HandleFunc("GET /library/book/{id}/html", s.requireAuth(s.handleBookHTML))
 	mux.HandleFunc("POST /library/book/{id}/progress", s.requireAuth(s.handleBookProgress))
-	mux.HandleFunc("GET /library/search", s.requireAuth(s.handleLibrarySearch))
-	mux.HandleFunc("GET /library/suggest", s.requireAuth(s.handleLibrarySuggest))
-	mux.HandleFunc("GET /library/new", s.requireAuth(s.handleLibraryNew))
 
-	// OPDS 1.2 (Atom) / 2.0 (JSON) — публичные каталоги.
-	mux.HandleFunc("GET /opds", s.handleOPDSRoot)
-	mux.HandleFunc("GET /opds/new", s.handleOPDSNew)
-	mux.HandleFunc("GET /opds/books", s.handleOPDSBooks)
-	mux.HandleFunc("GET /opds/search", s.handleOPDSSearch)
-	mux.HandleFunc("GET /opds/search.xml", s.handleOPDSSearchDescription)
-	mux.HandleFunc("GET /opds/authors", s.handleOPDSAuthors)
-	mux.HandleFunc("GET /opds/series", s.handleOPDSSeries)
-	mux.HandleFunc("GET /opds/genres", s.handleOPDSGenres)
+	// OPDS 1.2 (Atom) / 2.0 (JSON) — только для авторизованных (HTTP Basic).
+	// Гостям отдаётся 401 с WWW-Authenticate.
+	mux.HandleFunc("GET /opds", s.requireAuthOPDS(s.handleOPDSRoot))
+	mux.HandleFunc("GET /opds/new", s.requireAuthOPDS(s.handleOPDSNew))
+	mux.HandleFunc("GET /opds/books", s.requireAuthOPDS(s.handleOPDSBooks))
+	mux.HandleFunc("GET /opds/search", s.requireAuthOPDS(s.handleOPDSSearch))
+	mux.HandleFunc("GET /opds/search.xml", s.requireAuthOPDS(s.handleOPDSSearchDescription))
+	mux.HandleFunc("GET /opds/authors", s.requireAuthOPDS(s.handleOPDSAuthors))
+	mux.HandleFunc("GET /opds/series", s.requireAuthOPDS(s.handleOPDSSeries))
+	mux.HandleFunc("GET /opds/genres", s.requireAuthOPDS(s.handleOPDSGenres))
 	mux.HandleFunc("GET /library/shelf", s.requireAuth(s.handleLibraryShelf))
 	mux.HandleFunc("POST /library/shelf/{id}/remove", s.requireAuth(s.handleShelfRemove))
 	mux.HandleFunc("POST /scan/run", s.requireAuth(s.requireRole("admin", s.handleScanRun)))
@@ -262,6 +266,11 @@ func (s *Server) baseData(r *http.Request) map[string]any {
 			if pg, err := st.ShelfBooks(r.Context(), user.ID, 1, 3); err == nil {
 				data["ShelfBooks"] = pg.Items
 			}
+		}
+		// Каталоги верхнего уровня — для выпадающего меню «Каталоги» в шапке.
+		// Список может меняться после сканирования, поэтому грузим на каждой странице.
+		if cats, err := st.ListRootCatalogs(r.Context()); err == nil {
+			data["RootCatalogs"] = cats
 		}
 	}
 	return data

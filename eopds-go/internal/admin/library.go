@@ -169,12 +169,7 @@ func (s *Server) handleLibraryIndex(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 		return
 	}
-	cats, err := st.ListRootCatalogs(r.Context())
-	if err != nil {
-		s.log.Error("library: root catalogs", "err", err)
-	}
-	data := s.libData(r, "")
-	data["RootCatalogs"] = cats
+	data := s.libData(r, "catalogs")
 	s.render(w, r, "library", data)
 }
 
@@ -252,7 +247,7 @@ func (s *Server) handleLibraryCatalog(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.log.Error("library: catalog books", "err", err)
 	}
-	data := s.libData(r, "")
+	data := s.libData(r, "catalogs")
 	data["Catalog"] = cat
 	data["Children"] = children
 	data["ShowList"] = true

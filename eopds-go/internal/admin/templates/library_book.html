@@ -15,6 +15,8 @@
         {{if .Book.DocDate}}<p><b>{{T "lib.field_date"}}:</b> {{.Book.DocDate}}</p>{{end}}
         {{if .Book.Lang}}<p><b>{{T "lib.field_lang"}}:</b> {{.Book.Lang}}</p>{{end}}
         <p><b>{{T "lib.field_size"}}:</b> {{kb .Book.SizeBytes}} {{T "lib.kb"}}</p>
+        {{/* Скачивание и чтение доступны только авторизованным пользователям. */}}
+        {{if .User}}
         <p class="download-row">
           <b>{{T "lib.download"}}:</b>
           <a class="dl-link" href="/library/book/{{.Book.ID}}/download?fmt={{.Book.Format}}">{{.Book.Format}}</a>
@@ -26,6 +28,10 @@
         </p>
         {{if eq .Book.Format "fb2"}}
         <p class="read-row"><a class="dl-link read-wide" href="/library/book/{{.Book.ID}}/read">{{T "lib.read"}}</a></p>
+        {{end}}
+        {{else}}
+        {{/* После входа возвращаем гостя обратно на эту карточку. */}}
+        <p class="download-hint"><a href="/login?next={{printf "/library/book/%d" .Book.ID}}">{{T "lib.login_to_download"}}</a></p>
         {{end}}
       </td>
     </tr>

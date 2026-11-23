@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/auth"
@@ -52,23 +53,47 @@ func setSessionCookie(w http.ResponseWriter, id string, maxAge int) {
 
 // authenticate проверяет сессию из cookie и подкладывает пользователя в контекст.
 // Возвращает true, если пользователь аутентифицирован.
+// Дополнительно поддерживает HTTP Basic (нужен для OPDS-клиентов/читалок).
 func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (*store.User, *http.Request) {
 	st := s.getStore()
 	if st == nil {
 		return nil, r
 	}
-	c, err := r.Cookie(sessionCookie)
-	if err != nil || c.Value == "" {
-		return nil, r
-	}
-	u, err := st.GetSessionUser(r.Context(), c.Value)
-	if err != nil {
+	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
+		u, err := st.GetSessionUser(r.Context(), c.Value)
+		if err == nil {
+			return u, r.WithContext(context.WithValue(r.Context(), userCtxKey, u))
+		}
 		if errors.Is(err, store.ErrNotFound) {
 			setSessionCookie(w, "", -1) // устаревшая сессия — чистим cookie
 		}
-		return nil, r
+		// Пробуем Basic ниже (cookie могла протухнуть, а клиент — с Basic).
 	}
-	return u, r.WithContext(context.WithValue(r.Context(), userCtxKey, u))
+	if u := s.authenticateBasic(r); u != nil {
+		return u, r.WithContext(context.WithValue(r.Context(), userCtxKey, u))
+	}
+	return nil, r
+}
+
+// authenticateBasic проверяет HTTP Basic-заголовок (для OPDS-клиентов).
+// Возвращает пользователя или nil, если учётные данные отсутствуют/неверны.
+func (s *Server) authenticateBasic(r *http.Request) *store.User {
+	username, password, ok := r.BasicAuth()
+	if !ok || username == "" {
+		return nil
+	}
+	st := s.getStore()
+	if st == nil {
+		return nil
+	}
+	u, err := st.GetUserByUsername(r.Context(), username)
+	if err != nil || !u.IsActive || u.PasswordHash == "" {
+		return nil
+	}
+	if passed, err := auth.VerifyPassword(password, u.PasswordHash); err != nil || !passed {
+		return nil
+	}
+	return u
 }
 
 // requireAuth — middleware: пускает только аутентифицированных.
@@ -78,6 +103,29 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 		if u == nil {
 			nextURL := r.URL.RequestURI()
 			http.Redirect(w, r, "/login?next="+url.QueryEscape(nextURL), http.StatusSeeOther)
+			return
+		}
+		next(w, r2)
+	}
+}
+
+// optionalAuth — middleware для публичных страниц библиотеки: аутентифицирует
+// при наличии сессии, но НЕ прерывает запрос для гостей (пользователь = nil).
+func (s *Server) optionalAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, r2 := s.authenticate(w, r)
+		next(w, r2)
+	}
+}
+
+// requireAuthOPDS — middleware для OPDS: гостям отдаём 401 с WWW-Authenticate
+// (клиенты-читалки используют HTTP Basic), авторизованных пропускаем.
+func (s *Server) requireAuthOPDS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u, r2 := s.authenticate(w, r)
+		if u == nil {
+			w.Header().Set("WWW-Authenticate", `Basic realm="EOPDS", charset="UTF-8"`)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 		next(w, r2)
@@ -124,7 +172,8 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	username := r.PostFormValue("username")
 	password := r.PostFormValue("password")
 	next := r.PostFormValue("next")
-	if next == "" || next[0] != '/' {
+	// Разрешаем только локальные пути ("/" и не "//host" — защита от open redirect).
+	if next == "" || next[0] != '/' || strings.HasPrefix(next, "//") {
 		next = "/"
 	}
 

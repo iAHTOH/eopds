@@ -9,7 +9,7 @@
       </span>
     </a>
 
-    {{if .User}}
+    <div class="topbar-main">
     <div class="topbar-search">
       <form class="searchbar" method="get" action="/library/search" role="search" autocomplete="off">
         <input type="search" name="q" value="{{.Query}}" placeholder="{{T "search.ph_title"}}" aria-label="{{T "search.placeholder"}}" minlength="1">
@@ -25,7 +25,50 @@
         </div>
       </form>
     </div>
-    {{end}}
+
+    <nav class="catnav">
+      <div class="catnav-item has-sub{{if eq $.LibSection "catalogs"}} active{{end}}">
+        <a href="/library">{{T "cat.catalogs"}}</a>
+        <div class="catnav-sub">
+          <a href="/library">{{T "lang.all"}}</a>
+          {{range $.RootCatalogs}}
+          <a href="/library/catalog/{{.ID}}">{{.Name}}</a>
+          {{end}}
+        </div>
+      </div>
+      <div class="catnav-item has-sub{{if eq $.LibSection "books"}} active{{end}}">
+        <a href="/library/books">{{T "cat.books"}}</a>
+        <div class="catnav-sub">
+          <a href="/library/books?lang=0">{{T "lang.all"}}</a>
+          <a href="/library/books?lang=1">{{T "lang.cyrillic"}}</a>
+          <a href="/library/books?lang=2">{{T "lang.latin"}}</a>
+          <a href="/library/books?lang=3">{{T "lang.digits"}}</a>
+          <a href="/library/books?lang=9">{{T "lang.other"}}</a>
+        </div>
+      </div>
+      <div class="catnav-item has-sub{{if eq $.LibSection "authors"}} active{{end}}">
+        <a href="/library/authors">{{T "cat.authors"}}</a>
+        <div class="catnav-sub">
+          <a href="/library/authors?lang=0">{{T "lang.all"}}</a>
+          <a href="/library/authors?lang=1">{{T "lang.cyrillic"}}</a>
+          <a href="/library/authors?lang=2">{{T "lang.latin"}}</a>
+          <a href="/library/authors?lang=3">{{T "lang.digits"}}</a>
+          <a href="/library/authors?lang=9">{{T "lang.other"}}</a>
+        </div>
+      </div>
+      <a href="/library/genres" class="catnav-item{{if eq $.LibSection "genres"}} active{{end}}">{{T "cat.genres"}}</a>
+      <div class="catnav-item has-sub{{if eq $.LibSection "series"}} active{{end}}">
+        <a href="/library/series">{{T "cat.series"}}</a>
+        <div class="catnav-sub">
+          <a href="/library/series?lang=0">{{T "lang.all"}}</a>
+          <a href="/library/series?lang=1">{{T "lang.cyrillic"}}</a>
+          <a href="/library/series?lang=2">{{T "lang.latin"}}</a>
+          <a href="/library/series?lang=3">{{T "lang.digits"}}</a>
+          <a href="/library/series?lang=9">{{T "lang.other"}}</a>
+        </div>
+      </div>
+    </nav>
+    </div>
 
     <div class="topbar-actions">
       {{if eq .Theme "dark"}}
@@ -84,45 +127,6 @@
   </div>
 </header>
 
-{{if .User}}
-<div class="subbar">
-  <div class="subbar-inner">
-    <nav class="catnav">
-      <a href="/library" class="catnav-item{{if eq $.LibSection ""}} active{{end}}">{{T "cat.catalogs"}}</a>
-      <div class="catnav-item has-sub{{if eq $.LibSection "books"}} active{{end}}">
-        <a href="/library/books">{{T "cat.books"}}</a>
-        <div class="catnav-sub">
-          <a href="/library/books?lang=0">{{T "lang.all"}}</a>
-          <a href="/library/books?lang=1">{{T "lang.cyrillic"}}</a>
-          <a href="/library/books?lang=2">{{T "lang.latin"}}</a>
-          <a href="/library/books?lang=3">{{T "lang.digits"}}</a>
-          <a href="/library/books?lang=9">{{T "lang.other"}}</a>
-        </div>
-      </div>
-      <div class="catnav-item has-sub{{if eq $.LibSection "authors"}} active{{end}}">
-        <a href="/library/authors">{{T "cat.authors"}}</a>
-        <div class="catnav-sub">
-          <a href="/library/authors?lang=0">{{T "lang.all"}}</a>
-          <a href="/library/authors?lang=1">{{T "lang.cyrillic"}}</a>
-          <a href="/library/authors?lang=2">{{T "lang.latin"}}</a>
-          <a href="/library/authors?lang=3">{{T "lang.digits"}}</a>
-          <a href="/library/authors?lang=9">{{T "lang.other"}}</a>
-        </div>
-      </div>
-      <a href="/library/genres" class="catnav-item{{if eq $.LibSection "genres"}} active{{end}}">{{T "cat.genres"}}</a>
-      <div class="catnav-item has-sub{{if eq $.LibSection "series"}} active{{end}}">
-        <a href="/library/series">{{T "cat.series"}}</a>
-        <div class="catnav-sub">
-          <a href="/library/series?lang=0">{{T "lang.all"}}</a>
-          <a href="/library/series?lang=1">{{T "lang.cyrillic"}}</a>
-          <a href="/library/series?lang=2">{{T "lang.latin"}}</a>
-          <a href="/library/series?lang=3">{{T "lang.digits"}}</a>
-          <a href="/library/series?lang=9">{{T "lang.other"}}</a>
-        </div>
-      </div>
-    </nav>
-  </div>
-</div>
 <script>
 (function(){
   var f = document.querySelector('.searchbar');
@@ -192,10 +196,7 @@
 })();
 </script>
 {{end}}
-{{end}}
-
 {{define "site_footer"}}
-{{if .User}}
 <footer class="site-footer">
   <div class="footer-grid">
     {{/* Верхняя строка: Случайная книга (полная карточка) */}}
@@ -247,7 +248,6 @@
     </div>
   </div>
 </footer>
-{{end}}
 {{end}}
 
 {{define "lib_breadcrumbs"}}

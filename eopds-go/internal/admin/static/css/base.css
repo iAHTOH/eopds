@@ -41,11 +41,10 @@ a:hover {
 .topbar-inner {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 0 20px;
-  height: 60px;
+  padding: 4px 20px;
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 12px;
 }
 
 .brand {
@@ -92,23 +91,40 @@ a:hover {
   margin-left: auto;
 }
 
-/* Поиск в шапке (по центру, между брендом и действиями). */
-.topbar-search {
+/* Центральный блок шапки: строка поиска сверху, меню категорий — под ней.
+   Вертикальные отступы минимизированы, чтобы шапка была компактной. */
+.topbar-main {
   flex: 1 1 auto;
+  min-width: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+/* Строка поиска: растягивается на всю ширину центрального блока. */
+.topbar-search {
+  display: flex;
   align-items: center;
   min-width: 0;
+  width: 100%;
 }
 .topbar-search .searchbar {
   width: 100%;
   min-width: 0;
-  max-width: 520px;
-  flex: 0 1 520px;
+  flex: 1 1 auto;
 }
+/* Уменьшаем вертикальные отступы поиска и меню только внутри шапки. */
+.topbar-main .searchbar input[type="search"] { padding: 5px 14px; }
+.topbar-main .search-submit { padding: 5px 30px 5px 16px; }
+/* Меню категорий под строкой поиска — вплотную к строке поиска. */
+.topbar-main > .catnav {
+  min-width: 0;
+  margin-left: -12px;
+}
+.topbar-main > .catnav a { padding: 3px 12px; }
 /* На узких экранах поиск в шапке скрываем, чтобы не теснить
    бренд и меню аккаунта (как ранее скрывалось горизонтальное меню). */
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .topbar-search { display: none; }
 }
 
@@ -995,23 +1011,6 @@ select:focus {
   font-size: 13px;
 }
 .shelf-remove-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--hover-bg); }
-/* Подшапка: меню категорий библиотеки (поиск вынесен в шапку).
-   Кнопки меню — приглушённый текст на тёмном фоне, оранжевый при наведении/активе. */
-.subbar {
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-.subbar-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 10px 16px;
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
 /* --- Поиск --- */
 .searchbar {
   display: flex;

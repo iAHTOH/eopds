@@ -18,12 +18,19 @@
 
 Ответ несёт соответствующий `Content-Type`.
 
-## Публичный доступ
+## Доступ
 
-OPDS-каталоги (`/opds*`) **публичны** — читалки ходят без сессии.
-Скачивание файлов (`/library/book/{id}/download`) по-прежнему требует входа:
-acquisition-ссылки для гостя перенаправят на `/login`. Для доступа к файлам
-настройте вход в читалке (логин/пароль пользователя библиотеки).
+OPDS-каталоги (`/opds*`) доступны **только авторизованным** пользователям.
+Гостю отдаётся `401` с заголовком
+`WWW-Authenticate: Basic realm="EOPDS", charset="UTF-8"`. Поддерживаются две
+формы аутентификации:
+
+- **HTTP Basic** — основной способ для клиентов-читалок (логин/пароль
+  пользователя библиотеки передаются в заголовке `Authorization`);
+- **cookie-сессия** `eopds_session` — если клиент ранее вошёл через веб-форму.
+
+Скачивание файлов (`/library/book/{id}/download`) — тоже только для
+авторизованных. Настройте в читалке логин/пароль пользователя библиотеки.
 
 ## Маршруты
 
@@ -61,29 +68,36 @@ PDF → `application/pdf`, TXT → `text/plain`, MD → `text/markdown`.
 
 ## Примеры
 
-Корень в Atom:
+Без учётных данных — `401`:
 
 ```bash
-curl -H 'Accept: application/atom+xml' http://SERVER:8080/opds
+curl -i http://SERVER:8080/opds        # → 401 + WWW-Authenticate: Basic
+```
+
+Корень в Atom с HTTP Basic:
+
+```bash
+curl -u user:pass -H 'Accept: application/atom+xml' http://SERVER:8080/opds
 ```
 
 OPDS 2.0 (JSON):
 
 ```bash
-curl 'http://SERVER:8080/opds/new?format=json'
+curl -u user:pass 'http://SERVER:8080/opds/new?format=json'
 ```
 
 Поиск:
 
 ```bash
-curl 'http://SERVER:8080/opds/search?q=Конан&format=atom'
+curl -u user:pass 'http://SERVER:8080/opds/search?q=Конан&format=atom'
 ```
 
 ## Подключение в читалке
 
-Введите адрес каталога `http://SERVER:8080/opds` в OPDS-клиенте
-(Moon+ Reader, FBReader, KOReader, PocketBook…). Клиент сам откроет feed и
-покажет книги с кнопкой «Скачать».
+Введите адрес каталога `http://SERVER:8080/opds` и учётные данные
+(логин/пароль пользователя библиотеки) в OPDS-клиенте (Moon+ Reader, FBReader,
+KOReader, PocketBook…). Клиент сам откроет feed и покажет книги с кнопкой
+«Скачать».
 
 ## Устройство кода
 
