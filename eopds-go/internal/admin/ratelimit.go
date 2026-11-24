@@ -59,10 +59,13 @@ func (l *rateLimiter) Allow(key string) (ok bool, retryAfter time.Duration) {
 			kept = append(kept, t)
 		}
 	}
+	l.entries[key] = kept
 	if len(kept) >= l.limit {
-		l.entries[key] = kept
-		// Освобождение — когда самое старое событие выйдет из окна.
-		return false, kept[0].Add(l.window).Sub(now)
+		// Освобождение — когда выйдет из окна самое старое из «лишних»
+		// событий: это элемент под индексом limit-1 (окно скользящее, а не
+		// фиксированное, поэтому выпуск выдаётся по одному).
+		oldest := kept[len(kept)-l.limit]
+		return false, oldest.Add(l.window).Sub(now)
 	}
 	l.entries[key] = append(kept, now)
 	return true, 0

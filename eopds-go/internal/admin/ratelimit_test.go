@@ -27,6 +27,20 @@ func TestRateLimiterWindow(t *testing.T) {
 	if wait <= 0 || wait > time.Hour {
 		t.Fatalf("ожидалось ожидание в пределах часа, получено %v", wait)
 	}
+	// Окно скользящее: ждать нужно до освобождения одного слота, а не
+	// полные 3600 с от момента отказа.
+	l2 := newRateLimiter(2, time.Hour)
+	l2.entries["k"] = []time.Time{
+		time.Now().Add(-50 * time.Minute),
+		time.Now().Add(-10 * time.Minute),
+	}
+	ok, wait = l2.Allow("k")
+	if ok {
+		t.Fatal("лимит должен быть исчерпан")
+	}
+	if wait < 5*time.Minute || wait > 15*time.Minute {
+		t.Fatalf("ожидалось ~10 минут до освобождения слота, получено %v", wait)
+	}
 	// Другой ключ не затронут.
 	if ok, _ := l.Allow("b@example.com"); !ok {
 		t.Fatal("другой ключ должен быть разрешён")
