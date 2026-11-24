@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/iAHTOH/eopds/eopds-go/internal/config"
+	"github.com/iAHTOH/eopds/eopds-go/internal/emailcheck"
 	"github.com/iAHTOH/eopds/eopds-go/internal/i18n"
 	"github.com/iAHTOH/eopds/eopds-go/internal/store"
 	"github.com/iAHTOH/eopds/eopds-go/internal/version"
@@ -36,6 +37,11 @@ type Server struct {
 	i18n  *i18n.Bundle
 
 	scan *scanState // состояние единственного фонового сканирования
+
+	// mail — отправка исходящих писем (SMTP).
+	mail *mailService
+	// mailCheck — проверка адресов (синтаксис + MX) с кэшем.
+	mailCheck *emailcheck.Checker
 }
 
 // New создаёт сервер и строит наборы шаблонов.
@@ -44,7 +50,9 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle, scan: newScanState()}
+	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle,
+		scan: newScanState(), mailCheck: emailcheck.NewChecker()}
+	s.mail = newMailService(s)
 	pageFiles := map[string]string{
 		"install":         "templates/install.html",
 		"home":            "templates/home.html",
@@ -59,6 +67,8 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		"settings":        "templates/settings.html",
 		"profile":         "templates/profile.html",
 		"login":           "templates/login.html",
+		"reset":           "templates/reset.html",
+		"reset_confirm":   "templates/reset_confirm.html",
 		"portal":          "templates/portal.html",
 		"library_home":    "templates/library_home.html",
 	}
@@ -106,6 +116,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /login", s.handleLoginForm)
 	mux.HandleFunc("POST /login", s.handleLoginSubmit)
 	mux.HandleFunc("POST /logout", s.handleLogout)
+	// Сброс пароля по почте: запрос ссылки и установка нового пароля.
+	mux.HandleFunc("GET /reset", s.handleResetForm)
+	mux.HandleFunc("POST /reset", s.handleResetSubmit)
+	mux.HandleFunc("GET /reset/confirm", s.handleResetConfirm)
+	mux.HandleFunc("POST /reset/confirm", s.handleResetConfirm)
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
 	mux.HandleFunc("GET /dashboard/popular", s.requireAuth(s.handleDashboardPopular))
 	mux.HandleFunc("GET /dashboard/events/download", s.requireAuth(s.handleEventsDownload))
@@ -149,6 +164,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /settings", s.requireAuth(s.requireMinRole("moderator", s.handleSection("settings"))))
 	mux.HandleFunc("POST /settings/scan-dirs", s.requireAuth(s.requireRole("admin", s.handleSaveScanPaths)))
 	mux.HandleFunc("POST /settings/clear-library", s.requireAuth(s.requireRole("admin", s.handleClearLibrary)))
+	// Почта (SMTP): раздел настроек и действия с почтовым сервером.
+	mux.HandleFunc("POST /settings/mail", s.requireAuth(s.requireRole("admin", s.handleSaveMail)))
+	mux.HandleFunc("POST /settings/mail/verify", s.requireAuth(s.requireRole("admin", s.handleVerifyMail)))
+	mux.HandleFunc("POST /settings/mail/test", s.requireAuth(s.requireRole("admin", s.handleTestMail)))
+	mux.HandleFunc("POST /settings/mail/clear", s.requireAuth(s.requireRole("admin", s.handleClearMailLog)))
 	mux.HandleFunc("GET /settings/profile", s.requireAuth(s.handleProfile))
 	mux.HandleFunc("POST /settings/profile", s.requireAuth(s.handleProfileSave))
 	mux.HandleFunc("POST /settings/profile/password", s.requireAuth(s.handlePasswordChange))

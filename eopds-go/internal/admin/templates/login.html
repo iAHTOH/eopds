@@ -5,6 +5,7 @@
     <p class="muted">{{T "app.name"}}</p>
   </header>
   {{if .Error}}<div class="alert" role="alert">{{.Error}}</div>{{end}}
+  {{if .Info}}<div class="alert alert-ok" role="status">{{.Info}}</div>{{end}}
   <form method="post" action="/login" autocomplete="on">
     <input type="hidden" name="next" value="{{.Next}}">
     <label class="row"><span>{{T "login.username"}}</span>
@@ -33,6 +34,11 @@
     </label>
     <button type="submit" class="btn-primary">{{T "login.submit"}}</button>
   </form>
+  {{if .MailReady}}
+  <p class="muted small" style="margin-top:12px">
+    <a href="/reset">{{T "login.forgot"}}</a>
+  </p>
+  {{end}}
 </div>
 <script>
 (function () {

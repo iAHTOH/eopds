@@ -67,6 +67,7 @@ func settingsNav(u *store.User) []NavGroup {
 			Title: "settings.group_system",
 			Items: []NavItem{
 				{Sec: "general", Label: "settings.nav_general"},
+				{Sec: "mail", Label: "settings.nav_mail"},
 				{Sec: "log", Label: "settings.nav_log"},
 			},
 		})

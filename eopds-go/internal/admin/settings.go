@@ -188,6 +188,9 @@ func (s *Server) settingsData(r *http.Request, data map[string]any) {
 			}
 			data["Elapsed"] = formatDuration(time.Duration(sum.ElapsedMS) * time.Millisecond)
 		}
+
+	case "mail":
+		s.mailData(r, data, st)
 	}
 }
 

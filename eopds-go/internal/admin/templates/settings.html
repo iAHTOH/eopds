@@ -6,6 +6,8 @@
     {{template "settings_users" .}}
     {{else if eq .Sec "scan"}}
     {{template "settings_scan" .}}
+    {{else if eq .Sec "mail"}}
+    {{template "settings_mail" .}}
     {{else if eq .Sec "general"}}
     {{template "settings_general" .}}
     {{else if or (eq .Sec "log") (eq .Sec "updates") (eq .Sec "invites") (eq .Sec "requests")}}
@@ -206,6 +208,124 @@
   <p class="muted">{{T "settings.subtitle"}}</p>
 </header>
 <p class="muted">{{T "settings.stub"}}</p>
+{{end}}
+
+{{define "settings_mail"}}
+{{$s := .SMTP}}
+<header class="card-head">
+  <h1>{{T "settings.nav_mail"}}</h1>
+  <p class="muted">{{T "settings.mail_subtitle"}}</p>
+</header>
+
+<div class="mail-status">
+  {{if eq $s.SenderStatus "on"}}<span class="badge badge-admin">{{T "mail.status.on"}}</span>
+  {{else if eq $s.SenderStatus "off"}}<span class="badge badge-reader">{{T "mail.status.off"}}</span>
+  {{else}}<span class="badge badge-moderator">{{T "mail.status.incomplete"}}</span>{{end}}
+  {{if $s.VerifiedAt}}<span class="badge badge-reader" title="{{$s.VerifyMsg}}">✓ {{T "mail.status.verified"}}</span>
+  {{else}}<span class="badge badge-reader">{{T "mail.status.never"}}</span>{{end}}
+</div>
+
+{{if .MailFlash}}
+<div class="alert alert-ok" role="status">{{T (printf "mail.%s" .MailFlash)}}
+  {{if .MailError}}<br>{{.MailError}}{{end}}
+  {{if $s.VerifyMsg}}<br><span class="small">{{if $s.VerifiedAt}}{{T "mail.verified"}} — {{end}}{{$s.VerifyMsg}}</span>{{end}}
+</div>
+{{else if .MailError}}<div class="alert" role="alert">{{.MailError}}</div>
+{{else if $s.VerifyMsg}}<div class="alert {{if $s.VerifiedAt}}alert-ok{{end}}" role="status">
+  {{if $s.VerifiedAt}}{{T "mail.verified"}} — {{end}}{{$s.VerifyMsg}}</div>{{end}}
+
+<h2 class="section-title" id="smtp">{{T "mail.group_connection"}}</h2>
+<!-- Форма обязательна для «Тестового письма» (кнопка вне основной формы
+     вызывает её через атрибут form="mail-test-form"); таким образом,
+     отправка теста — это отдельный POST /settings/mail/test. -->
+<form id="mail-test-form" method="post" action="/settings/mail/test"></form>
+<form method="post" action="/settings/mail" autocomplete="off">
+  <label class="row"><span>{{T "mail.host"}}</span>
+    <input name="host" value="{{$s.FormHost}}" placeholder="{{T "mail.host_hint"}}" spellcheck="false" required></label>
+  <label class="row"><span>{{T "mail.port"}}</span>
+    <input name="port" type="number" min="1" max="65535" value="{{$s.FormPort}}" required></label>
+  <label class="row"><span>{{T "mail.security"}}</span>
+    <select name="security">
+      <option value="smtps" {{if eq $s.FormSecurity "smtps"}}selected{{end}}>{{T "mail.sec_smtps"}}</option>
+      <option value="starttls" {{if eq $s.FormSecurity "starttls"}}selected{{end}}>{{T "mail.sec_starttls"}}</option>
+      <option value="none" {{if eq $s.FormSecurity "none"}}selected{{end}}>{{T "mail.sec_none"}}</option>
+    </select></label>
+  <label class="row"><span>{{T "mail.username"}}</span>
+    <input name="username" value="{{$s.FormUsername}}" autocomplete="off" spellcheck="false"></label>
+  <label class="row"><span>{{T "mail.password"}}</span>
+    <input id="smtp-password" name="password" type="password" value="" autocomplete="new-password"
+           placeholder="{{if $s.PasswordSet}}{{T "mail.password_set"}}{{else}}{{T "mail.password_unset"}}{{end}}"></label>
+  <p class="muted small">{{T "mail.password_keep"}} {{T "mail.password_clear"}}</p>
+
+  <h2 class="section-title">{{T "mail.group_sender"}}</h2>
+  <label class="row"><span>{{T "mail.from_addr"}}</span>
+    <input name="from_addr" type="text" value="{{$s.FormFromAddr}}" spellcheck="false"
+           placeholder="address@example.com" required></label>
+  <label class="row"><span>{{T "mail.from_name"}}</span>
+    <input name="from_name" value="{{$s.FormFromName}}"></label>
+  <label class="row"><span>{{T "mail.reply_to"}}</span>
+    <input name="reply_to" type="email" value="{{$s.FormReplyTo}}" spellcheck="false"></label>
+
+  <label class="switch" style="margin:14px 0 4px">
+    <input type="checkbox" name="enabled" value="1" {{if $s.FormEnabled}}checked{{end}}>
+    <span class="switch-slider" aria-hidden="true"></span>
+    <span class="switch-label">{{T "mail.enabled"}}</span>
+  </label>
+  <p class="muted small">{{T "mail.enabled_hint"}}</p>
+
+  <div class="scan-dirs-actions">
+    <button type="submit" class="btn-primary btn-inline">{{T "mail.save"}}</button>
+    {{if $s.UpdatedAt}}<span class="muted small">{{T "mail.updated"}}</span>{{end}}
+  </div>
+</form>
+
+<h2 class="section-title">{{T "mail.group_test"}}</h2>
+<p class="muted small">{{T "mail.verify_hint"}}</p>
+<!-- «Проверить соединение» — кнопка внутри формы SMTP: вместе с ней браузер
+     отправляет все поля формы. Отдельная форма их не получает, из-за чего
+     проверка раньше падала с ошибкой «Укажите хост». -->
+<div class="scan-dirs-actions">
+  <button type="submit" class="btn-primary btn-inline"
+          formaction="/settings/mail/verify" formmethod="post">{{T "mail.verify"}}</button>
+</div>
+<!-- Тестовое письмо: кнопка вне формы SMTP и через form="mail-test-form"
+     отправляет только получателя (адрес вводится явно). -->
+<div class="mail-test-row">
+  <label class="row"><span>{{T "mail.test_to"}}</span>
+    <input form="mail-test-form" name="to" type="text" value="{{.TestTo}}"
+           spellcheck="false" required></label>
+  <div class="scan-dirs-actions">
+    <button type="submit" class="btn-primary btn-inline" form="mail-test-form"
+            formaction="/settings/mail/test" formmethod="post">{{T "mail.test"}}</button>
+  </div>
+</div>
+
+<h2 class="section-title" id="log">{{T "mail.group_log"}}</h2>
+<p class="muted small">{{T "mail.log_hint"}}</p>
+{{if .MailSent}}
+<table class="table">
+  <thead><tr>
+    <th>{{T "mail.col_time"}}</th><th>{{T "mail.col_recipient"}}</th>
+    <th>{{T "mail.col_template"}}</th><th>{{T "mail.col_status"}}</th>
+  </tr></thead>
+  <tbody>
+  {{range .MailSent}}
+    <tr>
+      <td class="nowrap small muted">{{.Time}}</td>
+      <td>{{.Recipient}}</td>
+      <td>{{if .Template}}{{T (printf "mail.tpl.%s" .Template)}}{{end}}</td>
+      <td><span class="badge {{if eq .Status "sent"}}badge-reader{{else if eq .Status "error"}}badge-admin{{else}}badge-moderator{{end}}">{{T (printf "mail.st.%s" .Status)}}</span>
+        {{if .Error}}<div class="muted small">{{.Error}}</div>{{end}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}<p class="muted">{{T "mail.log_empty"}}</p>{{end}}
+
+<form method="post" action="/settings/mail/clear" class="danger-zone"
+      onsubmit="return confirm('{{T "mail.clear_log_confirm"}}');">
+  <button type="submit" class="btn-primary btn-inline btn-danger">{{T "mail.clear_log"}}</button>
+</form>
 {{end}}
 
 {{define "settings_stub"}}

@@ -1,0 +1,22 @@
+{{define "content"}}
+<div class="card card-narrow">
+  <header class="card-head">
+    <h1>{{T "reset.form_title"}}</h1>
+    {{if .Email}}<p class="muted">{{.Email}}</p>{{end}}
+  </header>
+  {{if .Error}}<div class="alert" role="alert">{{.Error}}</div>{{end}}
+  {{if .Token}}
+  <form method="post" action="/reset/confirm" autocomplete="off">
+    <input type="hidden" name="token" value="{{.Token}}">
+    <label class="row"><span>{{T "reset.new_password"}}</span>
+      <input name="password" type="password" required autofocus autocomplete="new-password" minlength="8"></label>
+    <label class="row"><span>{{T "reset.repeat_password"}}</span>
+      <input name="password2" type="password" required autocomplete="new-password" minlength="8"></label>
+    <button type="submit" class="btn-primary">{{T "reset.save"}}</button>
+  </form>
+  {{end}}
+  <p class="muted small" style="margin-top:14px">
+    <a href="/reset">{{T "reset.title"}}</a>
+  </p>
+</div>
+{{end}}

@@ -1,0 +1,22 @@
+{{define "content"}}
+<div class="card card-narrow">
+  <header class="card-head">
+    <h1>{{T "reset.title"}}</h1>
+    <p class="muted">{{T "app.name"}}</p>
+  </header>
+  {{if .Error}}<div class="alert" role="alert">{{.Error}}</div>{{end}}
+  {{if .Info}}<div class="alert alert-ok" role="status">{{.Info}}</div>{{end}}
+  {{if .MailReady}}
+  <p class="muted small">{{T "reset.intro"}}</p>
+  <form method="post" action="/reset" autocomplete="on">
+    <label class="row"><span>{{T "reset.email"}}</span>
+      <input name="email" type="email" value="{{.Email}}" required autofocus
+             spellcheck="false" autocomplete="email"></label>
+    <button type="submit" class="btn-primary">{{T "reset.submit"}}</button>
+  </form>
+  {{end}}
+  <p class="muted small" style="margin-top:14px">
+    <a href="/login">{{T "login.title"}}</a>
+  </p>
+</div>
+{{end}}

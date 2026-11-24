@@ -236,6 +236,12 @@ func (s *Server) renderLogin(w http.ResponseWriter, r *http.Request, errMsg, use
 	data["Error"] = errMsg
 	data["Username"] = username
 	data["Next"] = r.URL.Query().Get("next")
+	// Ссылка «Забыли пароль?» — только когда почта настроена и включена.
+	data["MailReady"] = s.mailReady(r.Context())
+	// Сообщение после успешного сброса пароля по ссылке из письма.
+	if r.URL.Query().Get("reset") == "1" {
+		data["Info"] = s.translatorFor(r)("reset.done")
+	}
 	s.render(w, r, "login", data)
 }
 

@@ -1444,3 +1444,15 @@ select:focus {
   cursor: pointer;
 }
 .usermenu-logout button:hover { color: var(--accent); background: var(--hover-bg); }
+
+/* ==== Настройки: почта (SMTP) ==== */
+.mail-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0 8px;
+}
+.nowrap { white-space: nowrap; }
+/* Блок «Тестовое письмо»: поле получателя + кнопка вне основной формы SMTP. */
+.mail-test-row { margin-top: 4px; }
