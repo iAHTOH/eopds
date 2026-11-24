@@ -71,6 +71,16 @@
     </div>
 
     <div class="topbar-actions">
+      {{if .User}}
+      {{/* Дашборд — иконка «домик» слева от переключателя темы. */}}
+      <a class="icon-btn" href="/dashboard" title="{{T "nav.dashboard"}}" aria-label="{{T "nav.dashboard"}}">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 10.5 12 3l9 7.5"/>
+          <path d="M5.5 9.5V20h13V9.5"/>
+          <path d="M10 20v-5.5h4V20"/>
+        </svg>
+      </a>
+      {{end}}
       {{if eq .Theme "dark"}}
       <a class="icon-btn theme-toggle" href="?theme=light" title="{{T "theme.to_light"}}" aria-label="{{T "theme.to_light"}}">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
@@ -107,7 +117,6 @@
         </button>
         <div class="catnav-sub usermenu-sub" role="menu">
           <a role="menuitem" href="/settings/profile">{{T "nav.profile"}}</a>
-          <a role="menuitem" href="/dashboard">{{T "nav.dashboard"}}</a>
           {{if or .IsAdmin (eq .User.Role "moderator")}}
           <a role="menuitem" href="/settings">{{T "nav.settings"}}</a>
           {{end}}
