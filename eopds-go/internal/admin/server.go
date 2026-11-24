@@ -42,6 +42,10 @@ type Server struct {
 	mail *mailService
 	// mailCheck — проверка адресов (синтаксис + MX) с кэшем.
 	mailCheck *emailcheck.Checker
+
+	// Ограничители публичных форм (сброс пароля): по адресу и по IP.
+	resetByEmail *rateLimiter
+	resetByIP    *rateLimiter
 }
 
 // New создаёт сервер и строит наборы шаблонов.
@@ -51,7 +55,9 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{cfg: cfg, log: log, pages: make(map[string]*template.Template), i18n: bundle,
-		scan: newScanState(), mailCheck: emailcheck.NewChecker()}
+		scan: newScanState(), mailCheck: emailcheck.NewChecker(),
+		resetByEmail: newRateLimiter(resetPerEmailLimit, resetPerEmailWindow),
+		resetByIP:    newRateLimiter(resetPerIPLimit, resetPerIPWindow)}
 	s.mail = newMailService(s)
 	pageFiles := map[string]string{
 		"install":         "templates/install.html",

@@ -23,6 +23,16 @@ const (
 	resetMinPassword = 8
 )
 
+// Ограничение частоты запросов сброса пароля (защита от генерации писем).
+// Значения подобраны под типовые лимиты провайдеров SMTP (например, Gmail
+// не даёт отправить более ~500 писем в сутки с одного ящика).
+const (
+	resetPerEmailLimit  = 3         // запросов на адрес…
+	resetPerEmailWindow = time.Hour // …за час
+	resetPerIPLimit     = 10        // запросов с одного IP…
+	resetPerIPWindow    = time.Hour // …за час
+)
+
 // newResetToken генерирует случайный токен (32 байта) и его SHA-256 (hex).
 // В БД попадает только хеш; сам токен уходит в письме.
 func newResetToken() (token, hash string, err error) {
@@ -121,6 +131,14 @@ func (s *Server) handleResetSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ограничение частоты: проверяем ДО обращения к DNS и постановки письма
+	// в очередь. Ответ — всё та же форма «письмо отправлено», чтобы не
+	// раскрывать факт срабатывания лимита; отдельно пишем событие.
+	if !s.allowReset(r, email) {
+		http.Redirect(w, r, back+"&sent=1", http.StatusSeeOther)
+		return
+	}
+
 	// Адрес должен существовать (MX/A): на недоставляемые адреса не пишем.
 	chk := s.mailCheck.Check(r.Context(), email)
 	if chk.Valid() {
@@ -129,6 +147,29 @@ func (s *Server) handleResetSubmit(w http.ResponseWriter, r *http.Request) {
 		s.log.Info("сброс пароля: адрес не проходит проверку", "status", chk.Status)
 	}
 	http.Redirect(w, r, back+"&sent=1", http.StatusSeeOther)
+}
+
+// allowReset проверяет лимит запросов сброса по адресу и по IP.
+// При превышении фиксирует событие mail.reset_rate_limited и возвращает false.
+func (s *Server) allowReset(r *http.Request, email string) bool {
+	okEmail, waitEmail := s.resetByEmail.Allow(email)
+	okIP, waitIP := s.resetByIP.Allow(clientIP(r))
+	if okEmail && okIP {
+		return true
+	}
+	wait := waitEmail
+	if waitIP > wait {
+		wait = waitIP
+	}
+	s.log.Warn("сброс пароля: превышен лимит запросов",
+		"by_email", !okEmail, "by_ip", !okIP)
+	s.logEvent(r.Context(), store.EventWarn, "mail.reset_rate_limited", map[string]string{
+		"email":       maskEmail(email),
+		"by_email":    onOff(!okEmail),
+		"by_ip":       onOff(!okIP),
+		"retry_after": retryAfterHeader(wait),
+	})
+	return false
 }
 
 // startPasswordReset создаёт токен и ставит письмо в отправку.

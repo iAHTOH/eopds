@@ -55,6 +55,17 @@ func (r *recordingSender) last() (mail.Message, bool) {
 	}
 }
 
+// count возвращает число отправленных писем.
+func (r *recordingSender) count() int {
+	select {
+	case r.mu <- struct{}{}:
+		defer func() { <-r.mu }()
+		return len(r.got)
+	default:
+		return -1
+	}
+}
+
 // waitFor ждёт выполнения условия (фоновые отправки асинхронны).
 func waitFor(t *testing.T, d time.Duration, cond func() bool) {
 	t.Helper()
@@ -274,6 +285,9 @@ func TestPasswordResetFlow(t *testing.T) {
 	}, 0); err != nil {
 		t.Fatalf("mail settings: %v", err)
 	}
+	// Тест делает несколько запросов сброса подряд — лимитеры не должны мешать.
+	srv.resetByEmail.Reset()
+	srv.resetByIP.Reset()
 
 	// 1. Запрос сброса: письмо ставится в отправку.
 	w := do(t, srv, http.MethodPost, "/reset", url.Values{"email": {"reader@example.com"}}, nil)

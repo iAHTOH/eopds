@@ -1,7 +1,7 @@
 # Точка останова / шпаргалка (2026-11-24)
 
 Срез состояния проекта на момент очистки чата. Задача файла — быстро вернуть
-контекст и продолжить. Ветка — `dev`, версия — **0.62.0**.
+контекст и продолжить. Ветка — `dev`, версия — **0.63.0**.
 
 ## Состояние репозитория
 
@@ -13,7 +13,7 @@
 - **Не запушено**: `1dea4ea` и `73024a9` лежат локально в `dev` (`origin/dev`
   был на `c0495c2`). Проверить: `git log --oneline origin/dev..dev`;
   запушить: `git push origin dev`.
-- `VERSION` = `0.62.0`. Схема БД — `schema_version` = **8**.
+- `VERSION` = `0.63.0`. Схема БД — `schema_version` = **8**.
 
 ## Что реализовано (свежее, v0.62)
 
@@ -120,7 +120,7 @@ docker compose -f docker-compose.go.yml exec db-go psql -U eopds -d eopds
 
 Проверки:
 - `curl -s http://127.0.0.1:8080/api/health` → `status: ok`, `schema_version: 8`;
-- `curl -s http://127.0.0.1:8080/api/version` → `0.62.0`, `go: go1.27.4`.
+- `curl -s http://127.0.0.1:8080/api/version` → `0.63.0`, `go: go1.27.4`.
 
 Тестовые учётки (вход `POST /login`): `admin/password123` (root),
 `moderator/moderator123`, `reader/reader123`.
