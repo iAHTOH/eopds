@@ -48,6 +48,9 @@ type Store interface {
 
 	// GetUserByID возвращает пользователя по id (ErrNotFound, если нет).
 	GetUserByID(ctx context.Context, id int64) (*User, error)
+	// GetUserByEmail ищет пользователя по адресу почты (без учёта регистра).
+	// ErrNotFound, если адрес не закреплён ни за одним пользователем.
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
 
 	// ListUsers возвращает всех пользователей.
 	ListUsers(ctx context.Context) ([]User, error)
@@ -106,6 +109,30 @@ type Store interface {
 	SetSetting(ctx context.Context, key, value string, updatedBy int64) error
 	// GetSetting читает настройку; ErrNotFound, если нет.
 	GetSetting(ctx context.Context, key string) (string, error)
+
+	// GetMailSettings возвращает настройки SMTP (пустые, если не заданы).
+	GetMailSettings(ctx context.Context) (MailSettings, error)
+	// SaveMailSettings сохраняет настройки SMTP (одна строка id=1).
+	SaveMailSettings(ctx context.Context, m MailSettings, updatedBy int64) error
+	// AddMailSent добавляет запись журнала отправок, возвращает id.
+	AddMailSent(ctx context.Context, m MailSent) (int64, error)
+	// UpdateMailSent меняет статус/ошибку/идентификатор письма.
+	UpdateMailSent(ctx context.Context, id int64, status, errMsg, messageID string) error
+	// ListMailSent возвращает последние limit записей журнала (новые сверху).
+	ListMailSent(ctx context.Context, limit int) ([]MailSent, error)
+	// ClearMailSent очищает журнал отправок.
+	ClearMailSent(ctx context.Context) error
+
+	// CreateEmailToken сохраняет хеш токена (reset_password|verify_email).
+	CreateEmailToken(ctx context.Context, t EmailToken) (int64, error)
+	// GetEmailToken ищет действующий токен по хешу (не истёк и не использован).
+	GetEmailToken(ctx context.Context, tokenHash, kind string) (EmailToken, error)
+	// UseEmailToken помечает токен использованным (идемпотентно).
+	UseEmailToken(ctx context.Context, id int64) error
+	// DeleteEmailTokens удаляет все токены пользователя указанного вида.
+	DeleteEmailTokens(ctx context.Context, userID int64, kind string) error
+	// PurgeEmailTokens удаляет истёкшие и использованные токены.
+	PurgeEmailTokens(ctx context.Context) error
 
 	// AddDownload фиксирует факт скачивания книги (для аналитики/статистики).
 	AddDownload(ctx context.Context, bookID, userID int64, format string) error

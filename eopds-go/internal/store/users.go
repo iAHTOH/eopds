@@ -61,6 +61,36 @@ func (s *DBStore) CreateRootAdmin(ctx context.Context, username, passwordHash, e
 	return id, nil
 }
 
+// CreateUser создаёт обычного пользователя (не root) и возвращает id.
+// Роль по умолчанию — reader; is_active всегда выставлен.
+func (s *DBStore) CreateUser(ctx context.Context, username, email, passwordHash, role string) (int64, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return 0, errors.New("store: empty username")
+	}
+	if passwordHash == "" {
+		return 0, errors.New("store: empty password hash")
+	}
+	if role == "" {
+		role = "reader"
+	}
+	var emailArg any
+	if e := strings.TrimSpace(email); e != "" {
+		emailArg = e
+	}
+	q := fmt.Sprintf("INSERT INTO users (username, email, password_hash, role, is_root, is_active) "+
+		"VALUES (%s, %s, %s, %s, FALSE, TRUE) RETURNING id",
+		s.ph(1), s.ph(2), s.ph(3), s.ph(4))
+	var id int64
+	if err := s.db.QueryRowContext(ctx, q, username, emailArg, passwordHash, role).Scan(&id); err != nil {
+		if isUniqueViolation(err) {
+			return 0, ErrRootExists
+		}
+		return 0, fmt.Errorf("store: create user: %w", err)
+	}
+	return id, nil
+}
+
 // GetUserByUsername ищет пользователя по логину.
 func (s *DBStore) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	q := fmt.Sprintf("SELECT %s FROM users WHERE username = %s", s.userSelectCols(), s.ph(1))
@@ -83,6 +113,24 @@ func (s *DBStore) GetUserByID(ctx context.Context, id int64) (*User, error) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("store: get user by id: %w", err)
+	}
+	return u, nil
+}
+
+// GetUserByEmail ищет пользователя по адресу почты (без учёта регистра).
+func (s *DBStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return nil, ErrNotFound
+	}
+	q := fmt.Sprintf("SELECT %s FROM users WHERE LOWER(email) = LOWER(%s) ORDER BY id LIMIT 1",
+		s.userSelectCols(), s.ph(1))
+	u, err := scanUser(s.db.QueryRowContext(ctx, q, email))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("store: get user by email: %w", err)
 	}
 	return u, nil
 }

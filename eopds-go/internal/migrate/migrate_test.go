@@ -51,6 +51,7 @@ func TestApplySQLite(t *testing.T) {
 		"sessions", "bookshelf", "bookmarks", "annotations_cache",
 		"book_covers", "downloads", "registration_requests", "audit_log", "settings",
 		"scan_files", "system_events", "book_ratings", "book_comments",
+		"mail_smtp", "mail_sent", "email_tokens",
 	} {
 		ok, err := tableExists(ctx, db, DialectSQLite, tbl)
 		if err != nil {
@@ -66,8 +67,8 @@ func TestApplySQLite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("current version: %v", err)
 	}
-	if v != 7 {
-		t.Errorf("schema_version = %d, want 7", v)
+	if v != 8 {
+		t.Errorf("schema_version = %d, want 8", v)
 	}
 
 	// Ограничение «ровно один root».
