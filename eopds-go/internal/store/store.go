@@ -131,8 +131,9 @@ type Store interface {
 	UseEmailToken(ctx context.Context, id int64) error
 	// DeleteEmailTokens удаляет все токены пользователя указанного вида.
 	DeleteEmailTokens(ctx context.Context, userID int64, kind string) error
-	// PurgeEmailTokens удаляет истёкшие и использованные токены.
-	PurgeEmailTokens(ctx context.Context) error
+	// PurgeEmailTokens удаляет истёкшие и использованные токены,
+	// возвращая число удалённых строк.
+	PurgeEmailTokens(ctx context.Context) (int64, error)
 
 	// AddDownload фиксирует факт скачивания книги (для аналитики/статистики).
 	AddDownload(ctx context.Context, bookID, userID int64, format string) error

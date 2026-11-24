@@ -142,7 +142,7 @@ func TestEmailTokens(t *testing.T) {
 		t.Fatalf("expected ErrNotFound for expired, got %v", err)
 	}
 
-	// Повторная установка пароля отменяет прежние ссылки.
+	// Повторная установка пароля отменяет прежние ссылки того же вида.
 	mk(TokenResetPassword, "hash-new", time.Hour)
 	if err := st.DeleteEmailTokens(ctx, uid, TokenResetPassword); err != nil {
 		t.Fatalf("delete: %v", err)
@@ -151,16 +151,38 @@ func TestEmailTokens(t *testing.T) {
 		t.Fatalf("expected ErrNotFound after delete, got %v", err)
 	}
 
-	// Очистка: удаляет просроченные и использованные.
+	// Очистка: удаляет просроченные и использованные, возвращая их число.
+	// DeleteEmailTokens выше удалил все reset_password-токены пользователя,
+	// поэтому устаревшие записи создаём заново уже после него.
+	mk(TokenResetPassword, "hash-expired-2", -time.Minute)
+	mk(TokenResetPassword, "hash-used-2", time.Hour)
+	// Помечаем hash-used-2 использованным.
+	used2, err := st.GetEmailToken(ctx, "hash-used-2", TokenResetPassword)
+	if err != nil {
+		t.Fatalf("get used-2: %v", err)
+	}
+	if err := st.UseEmailToken(ctx, used2.ID); err != nil {
+		t.Fatalf("use used-2: %v", err)
+	}
 	mk(TokenVerifyEmail, "hash-verify", time.Hour)
-	if err := st.PurgeEmailTokens(ctx); err != nil {
+
+	n, err := st.PurgeEmailTokens(ctx)
+	if err != nil {
 		t.Fatalf("purge: %v", err)
 	}
-	if _, err := st.GetEmailToken(ctx, "hash-expired", TokenResetPassword); !errors.Is(err, ErrNotFound) {
+	// Устаревших было ровно две: просроченный и использованный.
+	if n != 2 {
+		t.Fatalf("очистка удалила %d, ожидалось 2", n)
+	}
+	if _, err := st.GetEmailToken(ctx, "hash-expired-2", TokenResetPassword); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expired token must be purged, got %v", err)
 	}
 	if _, err := st.GetEmailToken(ctx, "hash-verify", TokenVerifyEmail); err != nil {
 		t.Fatalf("valid token must survive purge: %v", err)
+	}
+	// Повторная очистка ничего не удаляет.
+	if n, err := st.PurgeEmailTokens(ctx); err != nil || n != 0 {
+		t.Fatalf("повторная очистка: n=%d err=%v", n, err)
 	}
 }
 

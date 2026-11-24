@@ -52,10 +52,10 @@ func ExtractCover(r io.Reader) (Cover, error) {
 	binaries := make(map[string]*binaryBuf)
 
 	var (
-		curBinaryID   string
-		inCoverpage   bool
-		inBinary      bool
-		foundRoot     bool
+		curBinaryID string
+		inCoverpage bool
+		inBinary    bool
+		foundRoot   bool
 	)
 
 	for {

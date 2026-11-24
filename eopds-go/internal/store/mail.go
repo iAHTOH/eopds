@@ -261,12 +261,19 @@ func (s *DBStore) DeleteEmailTokens(ctx context.Context, userID int64, kind stri
 	return nil
 }
 
-// PurgeEmailTokens удаляет истёкшие и использованные токены.
-func (s *DBStore) PurgeEmailTokens(ctx context.Context) error {
+// PurgeEmailTokens удаляет истёкшие и использованные токены, возвращая
+// число удалённых строк (для записи в журнал обслуживания).
+func (s *DBStore) PurgeEmailTokens(ctx context.Context) (int64, error) {
 	now := time.Now().UTC().UnixMilli()
 	q := fmt.Sprintf("DELETE FROM email_tokens WHERE expires_at <= %s OR used_at > 0", s.ph(1))
-	if _, err := s.db.ExecContext(ctx, q, now); err != nil {
-		return fmt.Errorf("store: purge email tokens: %w", err)
+	res, err := s.db.ExecContext(ctx, q, now)
+	if err != nil {
+		return 0, fmt.Errorf("store: purge email tokens: %w", err)
 	}
-	return nil
+	n, err := res.RowsAffected()
+	if err != nil {
+		// Драйвер не сообщает число строк — это не ошибка очистки.
+		return 0, nil
+	}
+	return n, nil
 }

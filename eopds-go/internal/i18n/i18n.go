@@ -21,9 +21,9 @@ const DefaultLang = "en"
 
 // Bundle — загруженные переводы.
 type Bundle struct {
-	langs   []string
-	msgid   string                          // язык, в котором хранятся ключи msgid
-	table   map[string]map[string]string     // lang -> msgid -> text
+	langs []string
+	msgid string                       // язык, в котором хранятся ключи msgid
+	table map[string]map[string]string // lang -> msgid -> text
 }
 
 // Load читает встроенные переводы.

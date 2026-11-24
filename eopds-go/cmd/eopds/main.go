@@ -93,6 +93,10 @@ func serve() error {
 	if st != nil {
 		srv.SetStore(st)
 		log.Info("БД подключена", "type", cfg.DBType, "version", version.String())
+		// Фоновое обслуживание БД (уборка просроченных токенов почты и т.п.).
+		// Контекст живёт до конца serve (см. defer ниже).
+		stopMaintenance := srv.StartMaintenance(context.Background())
+		defer stopMaintenance()
 		// Применяем config.json (root-администратор, каталоги сканирования).
 		if err := srv.ApplyConfigOnStart(ctx); err != nil {
 			log.Warn("применение конфигурации", "err", err)
