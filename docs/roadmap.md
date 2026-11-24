@@ -32,7 +32,11 @@
 
 ### Этап 2 — Go-админка (stdlib, тема портала)
 - [x] HTTP-сервер админки (`internal/admin`), html/template.
-- [x] API: `/api/health`, `/api/version`, `/api/upgrade-check`, `/api/forum/latest-topics`.
+- [x] API: `/api/health`, `/api/version` (каркас для них — `internal/version`).
+- [ ] `/api/upgrade-check` и `/api/forum/latest-topics` — были в Python-версии,
+      **при переходе на Go не перенесены** (пакетов `upgrade/` и `forum/` нет,
+      эндпоинты отдают `404`). Нужно реализовать заново, см.
+      [versioning.md](versioning.md) и [forum.md](forum.md).
 - [ ] Дашборд: **сделать современно и красиво** (при этом лёгким).
 - [x] Современный layout + меню; темы (светлая/тёмная), память выбора.
 - [ ] Виджеты: «Обновления» (eopds.ru/latest.json), «Актуальные темы форума».
@@ -112,7 +116,7 @@
 
 Текущая схема (Go, `eopds-go/internal/store` + `docs/db-schema.md`): `books`,
 `catalogs`, `authors`, `genres`, `series`, связи `book_authors`/`book_genres`/
-`book_series`, `bookshelf`, `settings`, `eopds_meta`.
+`book_series`, `bookshelf`, `settings`, `app_meta`.
 
 Что стоит продумать при переработке:
 - [ ] **Именование** таблиц/колонок (сейчас смешение `snake_case` и префиксов;
@@ -125,7 +129,9 @@
       каскады и внешние ключи под PostgreSQL и SQLite).
 - [ ] **Counter** — пересмотреть: хранить кэш-счётчики или считать на лету
       (материализованные представления / триггеры).
-- [ ] **Метаданные** (`eopds_meta`): `schema_version`, миграции, время установки.
+- [ ] **Метаданные** (`app_meta` — действующее имя в коде; `schema_version`,
+      время установки). Дополнить журналом применения миграций. Документация
+      местами говорила `eopds_meta` — приведено к коду.
 - [ ] **Пользователи/доступ** (см. Issues #3): приглашения, роли, закладки.
 - [ ] **Закладки/прогресс чтения** (см. Issues #2): таблица для позиции чтения.
 - [ ] **Обложки** — таблица `book_covers` всегда в схеме; режим выбирает
@@ -174,7 +180,9 @@
 - [x] **EPUB 2** — тот же контейнер, `version="2.0"` в OPF + NCX. Флаг `?fmt=epub2`.
 - [x] **Kobo EPUB (kepub)** — EPUB3 + `koboSpan`-разметка, `kobo.js`/`kobo.css`,
       расширение `.kepub.epub` (`?fmt=kepub`). См. [go/epub.md](go/epub.md).
-- [ ] **TXT / Markdown (md)** — тривиально из отрендеренного HTML; опционально (позже).
+- [ ] **TXT / Markdown (md)** — `?fmt=txt|md` пока отдаёт `404`: MIME-типы
+      (`mimeForFormat`) заведены, конвертер из отрендеренного HTML не подключён.
+      Опционально (позже).
 - [x] **AZW8 / KFX / PDF — НЕ делаем.** KFX — закрытый формат Amazon
       (технически/легально воспроизвести нельзя), AZW8/KF8 — тяжёлый и нишевый,
       PDF из переформатируемого FB2 даёт плохой результат. Отдавать `404`
