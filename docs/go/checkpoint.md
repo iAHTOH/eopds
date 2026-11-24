@@ -1,7 +1,7 @@
 # Точка останова / шпаргалка (2026-11-24)
 
 Срез состояния проекта на момент очистки чата. Задача файла — быстро вернуть
-контекст и продолжить. Ветка — `dev`, версия — **0.61.0**.
+контекст и продолжить. Ветка — `dev`, версия — **0.62.0**.
 
 ## Состояние репозитория
 
@@ -13,9 +13,29 @@
 - **Не запушено**: `1dea4ea` и `73024a9` лежат локально в `dev` (`origin/dev`
   был на `c0495c2`). Проверить: `git log --oneline origin/dev..dev`;
   запушить: `git push origin dev`.
-- `VERSION` = `0.61.0`. Схема БД — `schema_version` = **7**.
+- `VERSION` = `0.62.0`. Схема БД — `schema_version` = **8**.
 
-## Что реализовано (свежее, вокруг v0.61)
+## Что реализовано (свежее, v0.62)
+
+0. **Почта (SMTP), проверка адресов, сброс пароля по e-mail** (миграция `0008`,
+   `schema_version` = 8). Док: [mail.md](mail.md).
+   - Раздел «Настройки → Система → Почта (SMTP)» (`/settings?sec=mail`, admin):
+     хост/порт/шифрование (`smtps`/`starttls`/`none`), логин/пароль
+     (пусто — не менять, `-` — очистить), From/имя/Reply-To, включение отправки;
+     «Проверить соединение» (TLS+вход без письма), «Тестовое письмо»,
+     журнал отправок (последние 50) с очисткой.
+   - `internal/mail` (go-mail): письма ru/en, валидация настроек (пароль только
+     под TLS), выбор AUTH по предпочтению; `internal/emailcheck`: синтаксис + MX/A
+     с кэшем — на недоставляемые адреса не шлём.
+   - Сброс пароля: `/reset` → письмо (TTL 1 ч, одноразовый токен, в БД только
+     SHA-256) → `/reset/confirm` (новый пароль, отзыв всех сессий); ответ на
+     запрос всегда одинаковый.
+   - События: `mail.sent/error/settings_saved/verify_ok/verify_failed/
+     password_reset_requested/password_reset_done/log_cleared`.
+   - Таблицы: `mail_smtp`, `mail_sent`, `email_tokens`.
+   - Тесты: `internal/mail` (фейковый SMTP), `internal/emailcheck`,
+     `store/mail_test.go`, `admin/mail_test.go` (полный цикл сброса, права).
+
 
 1. **Оценки и отзывы к книгам** (миграция `0006`).
    - Рейтинг: 5 звёзд с половинками, `score 0..10` = 0..5 звёзд, одна оценка
@@ -50,7 +70,7 @@
    (зафиксированы, не `latest`). Shell (busybox) сохранён намеренно — для
    отладки командами в контейнере. Образ ~44.6 МБ. См. `Dockerfile.go`.
 
-## Более раннее (контекст)
+## Более раннее (контекст вокруг v0.61)
 
 - Проект Go-only (`eopds-go`), Python/Django удалён.
 - Сканер: фоновый скан + прогресс, батч-импорт (≈5–7x), инкрементальный скан
@@ -99,8 +119,8 @@ docker compose -f docker-compose.go.yml exec db-go psql -U eopds -d eopds
 ```
 
 Проверки:
-- `curl -s http://127.0.0.1:8080/api/health` → `status: ok`, `schema_version: 7`;
-- `curl -s http://127.0.0.1:8080/api/version` → `0.61.0`, `go: go1.27.4`.
+- `curl -s http://127.0.0.1:8080/api/health` → `status: ok`, `schema_version: 8`;
+- `curl -s http://127.0.0.1:8080/api/version` → `0.62.0`, `go: go1.27.4`.
 
 Тестовые учётки (вход `POST /login`): `admin/password123` (root),
 `moderator/moderator123`, `reader/reader123`.

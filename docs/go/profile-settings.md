@@ -66,7 +66,7 @@ POST `/settings/profile/logout-others` удаляет все сессии пол
 |---|---|
 | Пользователи | `users`, `requests`, `invites` |
 | Библиотека | `scan` — сканирование: каталоги, прогресс/итог, запуск, полный скан, опасная зона |
-| Система | `general` (SMTP и прочее), `log` |
+| Система | `general`, `mail` — почта (SMTP): соединение, отправитель, проверка, журнал отправок ([mail.md](mail.md)), `log` |
 | Обслуживание | `updates` — проверка обновлений портала (в конце) |
 
 **Модератор:** `users`, `requests`.
@@ -109,6 +109,10 @@ POST `/settings/profile/logout-others` удаляет все сессии пол
 | GET | `/scan/status` | JSON-снимок состояния скана (для авто-опроса страницей) |
 | POST | `/settings/scan-dirs` | сохранить каталоги сканирования (→ `/settings?sec=scan#scan`) |
 | POST | `/settings/clear-library` | очистка библиотеки (требует `confirm=yes`; → `/settings?sec=scan#danger`) |
+| POST | `/settings/mail` | сохранить настройки SMTP (admin) → `/settings?sec=mail#smtp` ([mail.md](mail.md)) |
+| POST | `/settings/mail/verify` | проверить соединение с SMTP (admin) |
+| POST | `/settings/mail/test` | тестовое письмо на указанный адрес (admin) |
+| POST | `/settings/mail/clear` | очистить журнал отправок (admin) |
 
 ### `GET /scan/status` — пример ответа
 

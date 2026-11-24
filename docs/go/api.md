@@ -21,6 +21,16 @@ read-only эндпоинты доступны без неё.
 | POST | `/scan/run` | запуск сканирования в фоне (admin); сразу `303` на `/settings?sec=scan#run`; `full=1` — полный перескан |
 | GET | `/scan/status` | JSON-статус фонового сканирования (для поллинга) |
 | GET | `/settings?sec=scan` | раздел настроек «Сканирование» (каталоги, прогресс/итог, запуск, опасная зона) — admin |
+| GET | `/settings?sec=mail` | раздел настроек «Почта (SMTP)»: соединение, отправитель, проверка, журнал отправок — admin ([mail.md](mail.md)) |
+| POST | `/settings/mail` | сохранить настройки SMTP; пустой пароль — не менять, `-` — очистить; → `/settings?sec=mail#smtp` с `flash=saved` или `err=<код>` |
+| POST | `/settings/mail/verify` | проверить соединение и вход в SMTP без отправки письма → `flash=verified` / `flash=verify_failed` |
+| POST | `/settings/mail/test` | тестовое письмо на `to` (с проверкой адреса) → `flash=test_queued` или `err=mail.check.*` |
+| POST | `/settings/mail/clear` | очистить журнал отправок → `flash=log_cleared` |
+| GET | `/login` | форма входа; при настроенной почте — ссылка «Забыли пароль?»; `?reset=1` — сообщение об успешном сбросе |
+| GET | `/reset` | форма запроса сброса пароля ([mail.md](mail.md#сброс-пароля-по-почте)) |
+| POST | `/reset` | `email=<адрес>`; всегда `303` на `/reset?sent=1` (не раскрывает наличие адреса) |
+| GET | `/reset/confirm?token=...` | форма нового пароля; неверный/просроченный/использованный токен → `400` |
+| POST | `/reset/confirm` | `token`, `password`, `password2` (мин. 8 символов); успех → `303` на `/login?reset=1` |
 | GET | `/dashboard` | дашборд; блок «Сообщения системы» — для admin/root и moderator ([system-events.md](system-events.md)) |
 | GET | `/dashboard/popular` | «Популярные книги»: по скачиваниям/рейтингу, постранично, с сортировкой (`?by=downloads\|rating&page=&sort=desc\|asc`) — для авторизованных |
 | GET | `/dashboard/events/download` | скачать журнал сообщений системы (`.log`, до `events.max_rows` строк); admin/root, moderator |

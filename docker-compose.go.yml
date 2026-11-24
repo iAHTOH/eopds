@@ -47,7 +47,8 @@ services:
       - ./config:/config
       # Коллекция книг (read-only). Какие подкаталоги сканировать —
       # задаётся в config.json (scan_paths) или в мастере установки.
-      - /run/media/ahtoh/SSD2/e-book:/books:ro
+      # Источник можно переопределить: EOPDS_BOOKS_DIR=/путь docker compose ...
+      - ${EOPDS_BOOKS_DIR:-/run/media/ahtoh/SSD2/e-book}:/books:ro
     ports:
       - "8080:8080"
     restart: unless-stopped
