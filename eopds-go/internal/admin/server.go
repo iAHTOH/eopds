@@ -78,18 +78,27 @@ func New(cfg config.Config, log *slog.Logger) (*Server, error) {
 		"portal":          "templates/portal.html",
 		"library_home":    "templates/library_home.html",
 	}
+	// csrfFuncs — заглушки CSRF-функций на этапе разбора шаблонов: без них
+	// ParseFS падает ещё до рендера. Настоящие токены подставляются в render
+	// через FuncMap на клонированной копии набора.
+	csrfFuncs := template.FuncMap{
+		"csrfField": func() template.HTML { return "" },
+		"csrfToken": func() string { return "" },
+	}
 	for name, file := range pageFiles {
 		base := template.New("layout").Funcs(template.FuncMap{
-			"T":        func(k string) string { return k },
-			"langName": langName,
-			"langCode": langCode,
-			"roleName": roleName,
-			"kb":       kb,
-			"trim":     trimText,
-			"initial":  greetingInitial,
-			"div2":     div2,
-			"seq":      seq,
-			"mul2":     mul2,
+			"T":         func(k string) string { return k },
+			"langName":  langName,
+			"langCode":  langCode,
+			"roleName":  roleName,
+			"kb":        kb,
+			"trim":      trimText,
+			"initial":   greetingInitial,
+			"div2":      div2,
+			"seq":       seq,
+			"mul2":      mul2,
+			"csrfField": csrfFuncs["csrfField"],
+			"csrfToken": csrfFuncs["csrfToken"],
 		})
 		if _, err := base.ParseFS(templatesFS, "templates/layout.html", "templates/chrome.html", "templates/lib_parts.html", "templates/library_entities.html", "templates/settings_parts.html", file); err != nil {
 			return nil, err
@@ -120,13 +129,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /install", s.handleInstallForm)
 	mux.HandleFunc("POST /install", s.handleInstallSubmit)
 	mux.HandleFunc("GET /login", s.handleLoginForm)
-	mux.HandleFunc("POST /login", s.handleLoginSubmit)
-	mux.HandleFunc("POST /logout", s.handleLogout)
+	mux.HandleFunc("POST /login", s.publicForm(s.handleLoginSubmit))
+	mux.HandleFunc("POST /logout", s.requireAuth(s.handleLogout))
 	// Сброс пароля по почте: запрос ссылки и установка нового пароля.
 	mux.HandleFunc("GET /reset", s.handleResetForm)
-	mux.HandleFunc("POST /reset", s.handleResetSubmit)
+	mux.HandleFunc("POST /reset", s.publicForm(s.handleResetSubmit))
 	mux.HandleFunc("GET /reset/confirm", s.handleResetConfirm)
-	mux.HandleFunc("POST /reset/confirm", s.handleResetConfirm)
+	mux.HandleFunc("POST /reset/confirm", s.publicForm(s.handleResetConfirm))
 	mux.HandleFunc("GET /dashboard", s.requireAuth(s.handleDashboard))
 	mux.HandleFunc("GET /dashboard/popular", s.requireAuth(s.handleDashboardPopular))
 	mux.HandleFunc("GET /dashboard/events/download", s.requireAuth(s.handleEventsDownload))
@@ -184,6 +193,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
+	// Аутентификация выполняется в каждом обработчике (requireAuth), поэтому
+	// CSRF-middleware подключается после неё — внутри requireAuth (см. ниже):
+	// иначе currentUser ещё пуст и привязка токена к пользователю не сработает.
 	mux.Handle("GET /static/", http.FileServer(http.FS(staticFS)))
 	return s.withThemeCookie(mux)
 }
@@ -249,7 +261,17 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, dat
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName, "kb": kb, "trim": trimText, "initial": greetingInitial, "div2": div2, "seq": seq, "mul2": mul2})
+	// CSRF: токен в контексте (выдан middleware) либо новый cookie; в шаблоны —
+	// и как строка ({{csrfToken}}), и как готовое скрытое поле ({{csrfField}}).
+	token := csrfToken(r)
+	if token == "" {
+		token = s.setCSRFCookie(w, r)
+	}
+	cloned = cloned.Funcs(template.FuncMap{"T": tr, "langName": langName, "langCode": langCode, "roleName": roleName, "kb": kb, "trim": trimText, "initial": greetingInitial, "div2": div2, "seq": seq, "mul2": mul2,
+		"csrfToken": func() string { return token },
+		"csrfField": func() template.HTML {
+			return template.HTML(`<input type="hidden" name="` + csrfFormField + `" value="` + template.HTMLEscapeString(token) + `">`)
+		}})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := cloned.ExecuteTemplate(w, "layout", data); err != nil {
 		s.log.Error("render", "page", page, "err", err)

@@ -89,6 +89,7 @@
 <h2 class="section-title" id="scan">{{T "settings.scan_dirs"}}</h2>
 <p class="muted">{{T "settings.scan_dirs_hint"}}</p>
 <form method="post" action="/settings/scan-dirs" class="scan-dirs">
+  {{csrfField}}
   <div id="scan-dirs-list" class="scan-dirs-list">
     {{range .ScanPaths}}
     <div class="scan-dir-row">
@@ -110,6 +111,7 @@
 {{if .IsAdmin}}
 <h2 class="section-title" id="run">{{T "scan.run"}}</h2>
 <form method="post" action="/scan/run" class="scan-run" id="scan-form">
+  {{csrfField}}
   <button type="submit" class="btn-primary btn-inline" id="scan-btn">{{T "scan.run"}}</button>
   <label class="switch" title="{{T "scan.full"}}">
     <input type="checkbox" name="full" value="1" id="scan-full">
@@ -124,6 +126,7 @@
 <p class="muted">{{T "settings.clear_library_hint"}}</p>
 <form method="post" action="/settings/clear-library" class="danger-zone"
       onsubmit="return confirm('{{T "settings.clear_library_confirm"}}');">
+  {{csrfField}}
   <input type="hidden" name="confirm" value="yes">
   <button type="submit" class="btn-primary btn-inline btn-danger">{{T "settings.clear_library"}}</button>
 </form>
@@ -238,8 +241,10 @@
 <!-- Форма обязательна для «Тестового письма» (кнопка вне основной формы
      вызывает её через атрибут form="mail-test-form"); таким образом,
      отправка теста — это отдельный POST /settings/mail/test. -->
-<form id="mail-test-form" method="post" action="/settings/mail/test"></form>
+<form id="mail-test-form" method="post" action="/settings/mail/test">
+  {{csrfField}}</form>
 <form method="post" action="/settings/mail" autocomplete="off">
+  {{csrfField}}
   <label class="row"><span>{{T "mail.host"}}</span>
     <input name="host" value="{{$s.FormHost}}" placeholder="{{T "mail.host_hint"}}" spellcheck="false" required></label>
   <label class="row"><span>{{T "mail.port"}}</span>
@@ -324,6 +329,7 @@
 
 <form method="post" action="/settings/mail/clear" class="danger-zone"
       onsubmit="return confirm('{{T "mail.clear_log_confirm"}}');">
+  {{csrfField}}
   <button type="submit" class="btn-primary btn-inline btn-danger">{{T "mail.clear_log"}}</button>
 </form>
 {{end}}

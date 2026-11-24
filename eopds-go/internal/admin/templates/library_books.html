@@ -61,6 +61,7 @@
             {{if .Annotation}}<div class="annotation small">{{trim .Annotation 400}}</div>{{end}}
             {{if $.ShelfMode}}
             <form method="post" action="/library/shelf/{{.ID}}/remove" class="shelf-remove-form">
+  {{csrfField}}
               <button type="submit" class="dl-link shelf-remove-btn">{{T "lib.shelf_remove"}}</button>
             </form>
             {{end}}

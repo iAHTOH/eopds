@@ -67,6 +67,7 @@
   {{if .User}}
   <div class="rating-pick-label">{{T "reviews.your_rating"}}:</div>
   <form class="rating-pick" id="rating-pick" method="post" action="/library/book/{{.Book.ID}}/rate">
+  {{csrfField}}
     <input type="hidden" name="score" id="rating-score" value="{{.Rating.MyScore}}">
     <div class="rating-widget" id="rating-widget" role="radiogroup" aria-label="{{T "reviews.your_rating"}}">
       {{/* 10 половинок: каждая — радиокнопка. */}}
@@ -109,6 +110,7 @@
 
   {{if .User}}
   <form class="comment-form" method="post" action="/library/book/{{.Book.ID}}/comment">
+  {{csrfField}}
     <textarea class="comment-input" name="body" rows="5" maxlength="{{.CommentMaxLen}}"
               placeholder="{{T "reviews.placeholder"}}" required></textarea>
     <div class="comment-form-foot">
@@ -129,6 +131,7 @@
         {{if .CanDelete}}
         <form class="comment-del" method="post" action="/library/book/{{.BookID}}/comment/{{.ID}}/delete"
               onsubmit="return confirm('{{T "reviews.confirm_delete"}}')">
+  {{csrfField}}
           <button type="submit" class="comment-del-btn" title="{{T "reviews.delete"}}">✕</button>
         </form>
         {{end}}

@@ -57,6 +57,8 @@
 
 <script>
 (function(){
+  // CSRF-токен страницы (cookie eopds_csrf) — нужен для fetch/sendBeacon.
+  var CSRF = {{csrfToken}};
   var scrollBox = document.getElementById('reader-scroll');
   var body      = document.getElementById('reader-body');
   var label     = document.getElementById('progress-label');
@@ -171,6 +173,7 @@
       saveTimer = null;
       var fd = new FormData();
       fd.append('position', 'percent:' + savePercent().toFixed(2));
+      fd.append('_csrf', CSRF);
       fetch('/library/book/' + bookId + '/progress', {method:'POST', body: fd, credentials:'same-origin'}).catch(function(){});
     }, 1200);
   }
@@ -178,6 +181,7 @@
     if (!navigator.sendBeacon) return;
     var fd = new FormData();
     fd.append('position', 'percent:' + savePercent().toFixed(2));
+    fd.append('_csrf', CSRF);
     navigator.sendBeacon('/library/book/' + bookId + '/progress', fd);
   });
 })();

@@ -3,7 +3,9 @@ package admin
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -118,9 +120,10 @@ func TestResetRateLimited(t *testing.T) {
 	srv, st := seedResetEnv(t)
 	rec := srv.mail.sender().(*recordingSender)
 
+	csrf := getCSRF(t, srv, "/reset", nil)
 	send := func() string {
-		w := do(t, srv, http.MethodPost, "/reset",
-			url.Values{"email": {"reader@example.com"}}, nil)
+		w := doWithCookies(t, srv, http.MethodPost, "/reset",
+			url.Values{"email": {"reader@example.com"}}, csrfHdr(csrf), csrfCookieHTTP(csrf))
 		if w.Code != http.StatusSeeOther {
 			t.Fatalf("status %d", w.Code)
 		}
@@ -165,10 +168,12 @@ func TestResetRateLimited(t *testing.T) {
 func TestResetRateLimitedByIP(t *testing.T) {
 	srv, _ := seedResetEnv(t)
 	rec := srv.mail.sender().(*recordingSender)
-	hdr := map[string]string{"X-Forwarded-For": "203.0.113.77"}
+	// Тот же IP у всех запросов.
+	csrf := getCSRF(t, srv, "/reset", map[string]string{"X-Forwarded-For": "203.0.113.77"})
 
 	send := func(email string) {
-		w := do(t, srv, http.MethodPost, "/reset", url.Values{"email": {email}}, hdr)
+		hdr := map[string]string{"X-Forwarded-For": "203.0.113.77", csrfHeaderName: csrf}
+		w := doWithCookies(t, srv, http.MethodPost, "/reset", url.Values{"email": {email}}, hdr, csrfCookieHTTP(csrf))
 		if w.Code != http.StatusSeeOther {
 			t.Fatalf("status %d", w.Code)
 		}
@@ -185,4 +190,64 @@ func TestResetRateLimitedByIP(t *testing.T) {
 	if rec.count() != before {
 		t.Fatal("при превышении лимита по IP письмо отправлено быть не должно")
 	}
+}
+
+// --- CSRF: помощники для тестов -------------------------------------------
+
+// csrfFromResp достаёт CSRF-токен из cookie ответа (выдаётся при показе формы).
+func csrfFromResp(t *testing.T, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	for _, c := range w.Result().Cookies() {
+		if c.Name == csrfCookieName {
+			if tok := csrfTokenFromCookie(c.Value); tok != "" {
+				return tok
+			}
+		}
+	}
+	t.Fatalf("в ответе нет cookie %s", csrfCookieName)
+	return ""
+}
+
+// csrfHdr возвращает заголовки с токеном CSRF (плюс cookie того же токена:
+// double-submit — браузер присылает обе половины, тест делает так же).
+func csrfHdr(token string) map[string]string {
+	return map[string]string{csrfHeaderName: token}
+}
+
+// csrfCookieHTTP создаёт cookie с CSRF-токеном для подстановки в запрос.
+func csrfCookieHTTP(token string) *http.Cookie {
+	return &http.Cookie{Name: csrfCookieName, Value: csrfCookieValue(token, 0)}
+}
+
+// doWithCookies выполняет запрос с клиентскими cookie.
+func doWithCookies(t *testing.T, srv *Server, method, target string, form url.Values,
+	hdr map[string]string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	var body io.Reader
+	if form != nil {
+		body = strings.NewReader(form.Encode())
+	}
+	r := httptest.NewRequest(method, target, body)
+	if form != nil {
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	for k, v := range hdr {
+		r.Header.Set(k, v)
+	}
+	for _, c := range cookies {
+		r.AddCookie(c)
+	}
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, r)
+	return w
+}
+
+// getCSRF открывает страницу и возвращает токен CSRF, выданный вместе с ней.
+func getCSRF(t *testing.T, srv *Server, target string, hdr map[string]string) string {
+	t.Helper()
+	w := do(t, srv, http.MethodGet, target, nil, hdr)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET %s: %d", target, w.Code)
+	}
+	return csrfFromResp(t, w)
 }

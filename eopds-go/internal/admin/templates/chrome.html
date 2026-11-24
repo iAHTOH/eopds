@@ -121,6 +121,7 @@
           <a role="menuitem" href="/settings">{{T "nav.settings"}}</a>
           {{end}}
           <form method="post" action="/logout" class="usermenu-logout">
+  {{csrfField}}
             <button type="submit" role="menuitem">{{T "nav.logout"}}</button>
           </form>
         </div>

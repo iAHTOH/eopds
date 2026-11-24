@@ -41,7 +41,7 @@ func TestReadLimit(t *testing.T) {
 // TestReaderTemplateParses проверяет, что шаблон читалки корректно собирается
 // вместе с общими частями и содержит ожидаемые элементы.
 func TestReaderTemplateParses(t *testing.T) {
-	tmpl := template.New("reader").Funcs(template.FuncMap{
+	tmpl := template.New("reader").Funcs(addCSRF(template.FuncMap{
 		"T":        func(k string) string { return k },
 		"langName": langName,
 		"langCode": langCode,
@@ -49,7 +49,7 @@ func TestReaderTemplateParses(t *testing.T) {
 		"kb":       func(n int64) string { return "0" },
 		"trim":     func(s string, n int) string { return s },
 		"initial":  greetingInitial,
-	})
+	}))
 	if _, err := tmpl.ParseFS(templatesFS,
 		"templates/layout.html", "templates/chrome.html", "templates/reader.html"); err != nil {
 		t.Fatalf("parse: %v", err)

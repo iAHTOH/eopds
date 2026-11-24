@@ -9,6 +9,7 @@
   {{if .MailReady}}
   <p class="muted small">{{T "reset.intro"}}</p>
   <form method="post" action="/reset" autocomplete="on">
+  {{csrfField}}
     <label class="row"><span>{{T "reset.email"}}</span>
       <input name="email" type="email" value="{{.Email}}" required autofocus
              spellcheck="false" autocomplete="email"></label>

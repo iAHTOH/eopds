@@ -289,8 +289,10 @@ func TestPasswordResetFlow(t *testing.T) {
 	srv.resetByEmail.Reset()
 	srv.resetByIP.Reset()
 
-	// 1. Запрос сброса: письмо ставится в отправку.
-	w := do(t, srv, http.MethodPost, "/reset", url.Values{"email": {"reader@example.com"}}, nil)
+	// 1. Запрос сброса: письмо ставится в отправку. Токен CSRF — с формы /reset.
+	csrf := getCSRF(t, srv, "/reset", nil)
+	w := doWithCookies(t, srv, http.MethodPost, "/reset",
+		url.Values{"email": {"reader@example.com"}}, csrfHdr(csrf), csrfCookieHTTP(csrf))
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("reset submit: %d: %s", w.Code, w.Body.String())
 	}
@@ -313,30 +315,31 @@ func TestPasswordResetFlow(t *testing.T) {
 		token = token[:i]
 	}
 
-	// 2. Неверный токен — форма с ошибкой.
+	// 2. Неверный токен — форма с ошибкой (CSRF берём с показанной формы).
 	w = do(t, srv, http.MethodGet, "/reset/confirm?token=bogus", nil, nil)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("bad token: expected 400, got %d", w.Code)
 	}
 
-	// 3. Форма нового пароля по верной ссылке.
+	// 3. Форма нового пароля по верной ссылке (вместе с ней — свой CSRF-токен).
 	w = do(t, srv, http.MethodGet, "/reset/confirm?token="+url.QueryEscape(token), nil, nil)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `name="password"`) {
 		t.Fatalf("confirm form: %d", w.Code)
 	}
+	csrf = csrfFromResp(t, w)
 
 	// 4. Слишком короткий пароль отклоняется.
-	w = do(t, srv, http.MethodPost, "/reset/confirm", url.Values{
+	w = doWithCookies(t, srv, http.MethodPost, "/reset/confirm", url.Values{
 		"token": {token}, "password": {"short"}, "password2": {"short"},
-	}, nil)
+	}, csrfHdr(csrf), csrfCookieHTTP(csrf))
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("short password: expected 400, got %d", w.Code)
 	}
 
 	// 5. Успешная смена пароля.
-	w = do(t, srv, http.MethodPost, "/reset/confirm", url.Values{
+	w = doWithCookies(t, srv, http.MethodPost, "/reset/confirm", url.Values{
 		"token": {token}, "password": {"new-password-1"}, "password2": {"new-password-1"},
-	}, nil)
+	}, csrfHdr(csrf), csrfCookieHTTP(csrf))
 	if w.Code != http.StatusSeeOther || !strings.Contains(w.Header().Get("Location"), "/login") {
 		t.Fatalf("reset confirm: %d %q", w.Code, w.Header().Get("Location"))
 	}
@@ -367,7 +370,9 @@ func TestResetUnknownEmailSilent(t *testing.T) {
 	}, 0); err != nil {
 		t.Fatalf("mail settings: %v", err)
 	}
-	w := do(t, srv, http.MethodPost, "/reset", url.Values{"email": {"nobody@example.com"}}, nil)
+	tok := getCSRF(t, srv, "/reset", nil)
+	w := doWithCookies(t, srv, http.MethodPost, "/reset",
+		url.Values{"email": {"nobody@example.com"}}, csrfHdr(tok), csrfCookieHTTP(tok))
 	if w.Code != http.StatusSeeOther || !strings.Contains(w.Header().Get("Location"), "sent=1") {
 		t.Fatalf("ожидался такой же ответ, получено %d %q", w.Code, w.Header().Get("Location"))
 	}
@@ -379,7 +384,9 @@ func TestResetUnknownEmailSilent(t *testing.T) {
 
 func TestResetDisabledWhenMailOff(t *testing.T) {
 	srv, _ := newTestServer(t)
-	w := do(t, srv, http.MethodPost, "/reset", url.Values{"email": {"reader@example.com"}}, nil)
+	tok := getCSRF(t, srv, "/reset", nil)
+	w := doWithCookies(t, srv, http.MethodPost, "/reset",
+		url.Values{"email": {"reader@example.com"}}, csrfHdr(tok), csrfCookieHTTP(tok))
 	// Без настроек почты — просто редирект назад, письма нет.
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("unexpected status %d", w.Code)

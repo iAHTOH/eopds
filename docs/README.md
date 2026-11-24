@@ -13,6 +13,7 @@
 
 ### Обзор
 - [architecture.md](architecture.md) — общая архитектура системы (Go).
+- [security.md](security.md) — безопасность: CSRF-защита форм (токены, cookie, исключения, как добавить форму).
 - [versioning.md](versioning.md) — версионирование, схема БД, проверка обновлений.
 - [db-schema.md](db-schema.md) — проектирование новой схемы БД для Go-ядра.
 - [roadmap.md](roadmap.md) — план развития проекта.

@@ -1,21 +1,27 @@
 # Точка останова / шпаргалка (2026-11-24)
 
 Срез состояния проекта на момент очистки чата. Задача файла — быстро вернуть
-контекст и продолжить. Ветка — `dev`, версия — **0.63.0**.
+контекст и продолжить. Ветка — `dev`, версия — **0.64.0**.
 
 ## Состояние репозитория
 
 - Последние коммиты (`dev`):
-  - `73024a9` — `build(docker): alpine 3.20 → 3.24, сборщик golang 1.26 → 1.27.4`
-  - `1dea4ea` — `feat(library): оценки, отзывы и популярные книги`
-  - `a684d3d` — `feat(library): публичный просмотр для гостей, закрытый OPDS`
+  - `a0e2032` — `fix(ratelimit): Retry-After по скользящему окну`
+  - `f1669e7` — `feat(mail): ограничение частоты запросов сброса пароля (v0.63.0)`
+  - `28d25c7` — `docs(roadmap): привести план к фактическому состоянию кода`
+  - `72fbe22` — `docs(roadmap): этап 6 «Почта и уведомления» — бэклог по почте`
 - Рабочее дерево чистое (кроме этой правки checkpoint.md, если ещё не закоммичена).
-- **Не запушено**: `1dea4ea` и `73024a9` лежат локально в `dev` (`origin/dev`
-  был на `c0495c2`). Проверить: `git log --oneline origin/dev..dev`;
-  запушить: `git push origin dev`.
-- `VERSION` = `0.63.0`. Схема БД — `schema_version` = **8**.
+- `VERSION` = `0.64.0`. Схема БД — `schema_version` = **8**.
 
-## Что реализовано (свежее, v0.62)
+## Что реализовано (свежее, v0.64)
+
+0. **CSRF-защита форм** (`internal/admin/csrf.go`, [security.md](../security.md)):
+   double-submit cookie `eopds_csrf` + привязка токена к `user_id`, проверка
+   в обёртках `requireAuth`/`optionalAuth`/`requireAuthOPDS`/`publicForm`;
+   `{{csrfField}}` во всех 19 POST-формах, `X-CSRF-Token` для JS.
+   Исключения: HTTP Basic (OPDS/curl) и `POST /install`. Тесты — `csrf_test.go`.
+
+## Что реализовано (свежее, v0.63)
 
 0. **Почта (SMTP), проверка адресов, сброс пароля по e-mail** (миграция `0008`,
    `schema_version` = 8). Док: [mail.md](mail.md).
@@ -120,7 +126,7 @@ docker compose -f docker-compose.go.yml exec db-go psql -U eopds -d eopds
 
 Проверки:
 - `curl -s http://127.0.0.1:8080/api/health` → `status: ok`, `schema_version: 8`;
-- `curl -s http://127.0.0.1:8080/api/version` → `0.63.0`, `go: go1.27.4`.
+- `curl -s http://127.0.0.1:8080/api/version` → `0.64.0`, `go: go1.27.4`.
 
 Тестовые учётки (вход `POST /login`): `admin/password123` (root),
 `moderator/moderator123`, `reader/reader123`.

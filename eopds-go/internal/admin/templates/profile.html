@@ -22,6 +22,7 @@
         <p class="muted">@{{.User.Username}} · <span class="badge badge-{{.User.Role}}">{{roleName .User.Role}}</span></p>
         <div class="prof-avatar-actions">
           <form method="post" action="/settings/profile/avatar" enctype="multipart/form-data" class="avatar-upload">
+  {{csrfField}}
             <label class="avatar-file">
               <input type="file" name="avatar" accept="image/png,image/jpeg,image/gif" onchange="this.form.submit()">
               <span class="dl-link">{{T "profile.avatar_upload"}}</span>
@@ -29,6 +30,7 @@
           </form>
           {{if .HasAvatar}}
           <form method="post" action="/settings/profile/avatar">
+  {{csrfField}}
             <input type="hidden" name="delete" value="1">
             <button type="submit" class="dl-link">{{T "profile.avatar_remove"}}</button>
           </form>
@@ -41,6 +43,7 @@
     {{/* Основные данные */}}
     <h2 class="section-title" id="main">{{T "profile.section_main"}}</h2>
     <form method="post" action="/settings/profile" autocomplete="off">
+  {{csrfField}}
       <label class="row"><span>{{T "profile.display_name"}}</span>
         <input name="display_name" value="{{.DisplayName}}" maxlength="100" placeholder="{{T "profile.display_name_ph"}}"></label>
       <p class="muted small">{{T "profile.display_name_hint"}}</p>
@@ -94,6 +97,7 @@
     {{/* Смена пароля */}}
     <h2 class="section-title" id="password">{{T "profile.section_password"}}</h2>
     <form method="post" action="/settings/profile/password" autocomplete="off">
+  {{csrfField}}
       <label class="row"><span>{{T "profile.old_password"}}</span>
         <input type="password" name="old_password" required autocomplete="current-password"></label>
       <label class="row"><span>{{T "profile.new_password"}}</span>
@@ -107,6 +111,7 @@
     <h2 class="section-title" id="security">{{T "profile.section_security"}}</h2>
     <p class="muted small">{{T "profile.logout_others_hint"}}</p>
     <form method="post" action="/settings/profile/logout-others">
+  {{csrfField}}
       <button type="submit" class="btn-primary btn-inline">{{T "profile.logout_others"}}</button>
     </form>
 </div>

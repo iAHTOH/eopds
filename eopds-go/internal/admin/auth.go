@@ -22,7 +22,10 @@ const (
 // ctxKey — ключ контекста для текущего пользователя.
 type ctxKey int
 
-const userCtxKey ctxKey = 1
+const (
+	userCtxKey ctxKey = 1
+	csrfCtxKey ctxKey = 2 // CSRF-токен текущей страницы (см. csrf.go)
+)
 
 // currentUser достаёт пользователя из контекста запроса.
 func currentUser(r *http.Request) *store.User {
@@ -105,7 +108,33 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			http.Redirect(w, r, "/login?next="+url.QueryEscape(nextURL), http.StatusSeeOther)
 			return
 		}
-		next(w, r2)
+		// Токен привязан к пользователю — проверяем уже после аутентификации.
+		s.csrfGuard(next)(w, r2)
+	}
+}
+
+// csrfGuard проверяет CSRF на изменяющих запросах. Вызывается после
+// аутентификации: для POST без сессии (форма входа, сброс пароля) токен
+// сравнивается без привязки к пользователю.
+//
+// Запросы с HTTP Basic (OPDS-клиенты, curl) не проверяются: они не
+// отправляются браузером с амбиентными cookie — CSRF к ним неприменим.
+func (s *Server) csrfGuard(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next(w, r)
+			return
+		}
+		if csrfExempt(r) || hasBasicAuth(r) {
+			next(w, r)
+			return
+		}
+		if !s.checkCSRF(r) {
+			s.csrfFailed(w, r)
+			return
+		}
+		next(w, r)
 	}
 }
 
@@ -114,7 +143,7 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 func (s *Server) optionalAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, r2 := s.authenticate(w, r)
-		next(w, r2)
+		s.csrfGuard(next)(w, r2)
 	}
 }
 
@@ -128,7 +157,7 @@ func (s *Server) requireAuthOPDS(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		next(w, r2)
+		s.csrfGuard(next)(w, r2)
 	}
 }
 
@@ -255,5 +284,14 @@ func (s *Server) requireMinRole(min string, next http.HandlerFunc) http.HandlerF
 			return
 		}
 		next(w, r)
+	}
+}
+
+// publicForm — обёртка для форм без обязательного входа (вход и сброс
+// пароля). CSRF-проверка выполняется до обработчика: токен не связан с
+// пользователем, поэтому аутентификация для проверки не нужна.
+func (s *Server) publicForm(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s.csrfGuard(next)(w, r)
 	}
 }
