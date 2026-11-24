@@ -2,7 +2,8 @@
 # Многоступенчатая сборка: Go-бинарник без CGO → минимальный рантайм.
 
 # --- Сборка ---
-FROM golang:1.26-alpine AS build
+# Сборщик фиксирован по патч-версии для воспроизводимости.
+FROM golang:1.27.4-alpine AS build
 WORKDIR /src
 
 # Опционально: короткий git-хэш через --build-arg COMMIT=...
@@ -27,7 +28,9 @@ RUN VERSION="$(cat /VERSION)" && \
     -o /out/eopds ./cmd/eopds
 
 # --- Рантайм ---
-FROM alpine:3.20
+# База фиксирована по минору (не latest): 3.20 была EOL, 3.22 — стабильная.
+# 3.24 — текущая стабильная ветка с максимальным сроком поддержки вперёд.
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata \
     && adduser -D -u 1000 eopds \
     && mkdir -p /config /books \
