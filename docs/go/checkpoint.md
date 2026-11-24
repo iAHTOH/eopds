@@ -1,135 +1,123 @@
-# Точка останова (2026-11-21)
+# Точка останова / шпаргалка (2026-11-24)
 
-Записываемся здесь, чтобы завтра продолжить с этого места. Ветка `dev`,
-последний коммит: онлайн-читалка FB2 (reader); версия 0.51.0.
+Срез состояния проекта на момент очистки чата. Задача файла — быстро вернуть
+контекст и продолжить. Ветка — `dev`, версия — **0.61.0**.
 
-## Где мы / что сделано (сегодня)
+## Состояние репозитория
 
-1. **Полный отказ от Python/Django** (коммит ≪chore: переход на Go-only≫):
-   удалён весь старый проект и legacy-мусор. Канонический план — [roadmap.md](roadmap.md).
-2. **Сканер: фоновый режим + прогресс.** `POST /scan/run` теперь запускает
-   скан в горутине (`context.Background`), UI показывает живой счётчик.
-   Проверено на коллекции `/books`: 6211 книг, 6210 создано, 0 ошибок.
-   См. [go/scanner.md](go/scanner.md), [go/api.md](go/api.md).
+- Последние коммиты (`dev`):
+  - `73024a9` — `build(docker): alpine 3.20 → 3.24, сборщик golang 1.26 → 1.27.4`
+  - `1dea4ea` — `feat(library): оценки, отзывы и популярные книги`
+  - `a684d3d` — `feat(library): публичный просмотр для гостей, закрытый OPDS`
+- Рабочее дерево чистое (кроме этой правки checkpoint.md, если ещё не закоммичена).
+- **Не запушено**: `1dea4ea` и `73024a9` лежат локально в `dev` (`origin/dev`
+  был на `c0495c2`). Проверить: `git log --oneline origin/dev..dev`;
+  запушить: `git push origin dev`.
+- `VERSION` = `0.61.0`. Схема БД — `schema_version` = **7**.
 
-Библиотека очищена и пересканирована заново; папка `Linux/` (zip с FB2)
-распознана сканером и присутствует в каталогах.
+## Что реализовано (свежее, вокруг v0.61)
 
-3. **Батч-импорт (ускорение скана).** Импорт пишется пачками (одна транзакция
-   на ~500 книг + per-book SAVEPOINT + кэш справочников). Замер на 6210 книг:
-   первичный ~11 с (было ~58 с), повторный ~8 с (≈5–7x). Тесты
-   `TestImportBooksBatch`, `TestImportBooksErrorIsolation`.
-   См. [go/scanner.md](go/scanner.md). Версия → 0.49.0.
-4. **Инкрементальный скан.** Отпечатки `size`+`mtime` прочитанных файлов/архивов
-   в таблице `scan_files` (миграция, schema_version 3). Неизменившиеся
-   источники пропускаются без парсинга. Повторный скан на 6210 книг:
-   `skipped=8`, `found=0`, **< 1 с** (было ~8 с). UI: чекбокс «Полный скан»
-   (`full=1`) для принудительного перечитывания. Тесты
-   `TestScanFilesRoundTrip`, `TestClearLibraryClearsScanFiles`,
-   `TestWalkIncrementalSkipsUnchanged`, `TestWalkZipArchiveFingerprint`.
-   См. [go/scanner.md](go/scanner.md#инкрементальный-скан). Версия → 0.50.0.
+1. **Оценки и отзывы к книгам** (миграция `0006`).
+   - Рейтинг: 5 звёзд с половинками, `score 0..10` = 0..5 звёзд, одна оценка
+     на пользователя (upsert), среднее/число — на лету.
+   - Отзывы: добавление, удаление своего (модератор/админ — любой), без
+     премодерации. Просмотр — всем, действия — авторизованным.
+   - UI: блок рейтинга (клик по половине звезды) + отзывы на карточке книги.
+   - Журнал: события `book.rate`, `book.comment`, `book.comment_delete`;
+     ссылки актёр→профиль, книга→карточка (служебные args `_user_id`,
+     `_book_id`; в `.log` — без ссылок).
+   - Код: `store/reviews.go`, `admin/reviews.go`, `library_book.html`, CSS
+     `library.css`/`theme-*.css` (`--star-fill`/`--star-empty`).
+     Док: [library.md](library.md).
 
-5. **Онлайн-читалка FB2.** `internal/fb2render` (FB2 `<body>` → безопасный
-   HTML: секции/TOC, тексты/выделения, стихи, эпиграфы/цитаты, таблицы,
-   картинки как data URI из `<binary>`, сноски `<body name="notes">`).
-   Эндпоинты `GET /library/book/{id}/read`, `GET /library/book/{id}/html`,
-   `POST /library/book/{id}/progress`; шаблон `reader.html` с пагинацией по
-   высоте окна, закреплённой (sticky) панелью и настройкой шрифта; кнопка
-   «Читать» под «Скачать» на карточке. Прогресс — `bookmarks.position`
-   (`percent:NN`), схема БД не менялась. Док: [go/reader.md](reader.md).
-   Версия → 0.51.0.
+2. **Популярность и счётчик «Скачено»** (миграция `0007`).
+   - `downloads`: одна строка на пару (книга, пользователь) — частичный
+     уникальный индекс `downloads_book_user_uidx (book_id,user_id)
+     WHERE user_id IS NOT NULL`; `AddDownload` идемпотентен
+     (`ON CONFLICT DO NOTHING`). Повторы не раздувают таблицу.
+   - **Популярность = уникальные читатели**: `COUNT(DISTINCT user_id)` +
+     анонимные (`user_id IS NULL`). Повторами не накручивается.
+   - Учитывает: скачивание, **открытие читалки** (`format='read'`,
+     `handleBookRead` → `recordRead`), OPDS (через `/download`).
+   - Карточка: «**Скачено: N**» (`lib.downloads_count`) над рейтингом.
+   - Дашборд: «Популярные книги» (топ-3). Страница
+     `/dashboard/popular?by=downloads|rating&page=&sort=desc|asc` — сортировка
+     на уровне SQL.
+   - Код: `store/popular.go`, `admin/popular.go`, `admin/server.go` (baseData).
+     Док: [api.md](api.md), [library.md](library.md), [../db-schema.md](../db-schema.md).
 
-## С чего начнём после перерыва (next)
+3. **Docker**: рантайм `alpine:3.24`, сборщик `golang:1.27.4-alpine`
+   (зафиксированы, не `latest`). Shell (busybox) сохранён намеренно — для
+   отладки командами в контейнере. Образ ~44.6 МБ. См. `Dockerfile.go`.
 
-1. **Онлайн-читалка FB2 — сделано** (см. [go/reader.md](reader.md)).
-   Дальнейшие улучшения на выбор: точная позиция (по абзацу, а не процент),
-   кэш отрендеренного HTML на диск, отдельный эндпоинт для картинок вместо
-   data URI для тяжёлых иллюстрированных книг.
-2. **Конвертер на скачивание** (FB2 → EPUB/MOBI) — см. roadmap.
-3. **Публичный OPDS-портал** и телеграм-бот — позже (см. roadmap.md).
+## Более раннее (контекст)
 
-## Онлайн-читалка: план (архив, ноя 2026)
+- Проект Go-only (`eopds-go`), Python/Django удалён.
+- Сканер: фоновый скан + прогресс, батч-импорт (≈5–7x), инкрементальный скан
+  (`scan_files`, отпечатки size+mtime). [scanner.md](scanner.md).
+- Онлайн-читалка FB2 (server-side): `/read`, `/html`, `/progress`. [reader.md](reader.md).
+- Публичная библиотека для гостей; OPDS — только авторизованным.
+- EPUB-экспорт `?fmt=epub|epub3|epub2|kepub`. [epub.md](epub.md).
+- Профиль/настройки `/settings/profile`. [profile-settings.md](profile-settings.md).
+- Журнал «Сообщения системы». [system-events.md](system-events.md).
 
-Статус: **реализовано** (версия 0.51.0, см. [go/reader.md](reader.md)).
-Раздел сохранён как история принятых решений. Ветка `dev`.
+## Решения от пользователя (не забывать)
 
-### Принятые решения (от пользователя)
+- **Популярность = уникальные читатели** (вариант A): читать = тоже
+  популярность; повторы не считаем.
+- **Без раздувания таблицы**: одна строка на (книга, пользователь) — на уровне
+  БД (уникальный индекс), не только в коде.
+- **Бэкап**: счётчик/рейтинг/отзывы — обычные таблицы (`downloads`,
+  `book_ratings`, `book_comments`); стандартный дамп сохраняет всё.
+- **Docker**: shell оставляем (дебаг), версии фиксируем (не `latest`).
+- **Подписи вкладок** популярного («По скачиванию»/«По рейтингу») оставлены
+  как есть.
+- Коммиты — рус/Conventional (`feat(...)`, `build(...)`, `chore(...)`).
+  Документация — часть Definition of Done.
 
-1. **Серверный рендеринг** FB2 → чистый HTML; клиент — тонкий JS только для
-   прогресса/настроек. Никакого JS-ридера (epub.js и т.п.).
-2. **Прогресс — простой** (процент/`scrollTop`), не по абзацам. Читалка — «для
-   ознакомления»; полноценное чтение — скачиванием в свою программу.
-3. **Только FB2** (в коллекции 6210 FB2). EPUB — отдельный **конвертер на
-   скачивание** (не для чтения в браузере).
-4. **Сноски** — в MVP, если не сложно (`<body name="notes">`).
-5. **Картинки** — сразу (иллюстрации + обложка внутри текста).
-6. **Кэш — на лету** (рендерить HTML при каждом запросе, без дискового кэша).
+## Правила и грабли
 
-### Архитектура (план)
+- Новая функция/команда/API/конфиг → страница в `docs/` в том же коммите;
+  индекс — [../README.md](../README.md).
+- Версия — SemVer, единый источник `VERSION` (→ ldflags `internal/version`).
+  Изменение схемы → инкремент `schema_version` + миграция в
+  `eopds-go/internal/migrate/migrations/{pg,sqlite}/`.
+- Перед коммитом Go: `gofmt -l`, `go build ./...`, `go test -count=1 ./...`.
+- **Не делать массовые `DELETE` без фильтра** (был инцидент с `system_events`).
+  Удалять только тестовые строки точечно (`WHERE book_id=… AND user_id=…`).
+- Docker `build --no-cache` иногда падает на IPv6 к registry
+  (`network is unreachable`) — помогает явный `docker pull <tag>`.
 
-- `internal/fb2render` — потоковый парсер `<body>` FB2 → безопасный HTML:
-  `section`, `title`, `p`, `epigraph`, `poem`/`stanza`/`v`, `cite`,
-  `subtitle`, `empty-line`, `emphasis`/`strong`/`style`, таблицы, картинки
-  (`<binary>` → data URI), сноски (`a type="note"` + `<body name="notes">`).
-  Основа — существующий терпимый парсер `internal/fb2` (метаданные читает,
-  останавливается после `</description>`; тело читаем отдельным проходом).
-  API вида `Render(r io.Reader) (html []byte, toc []TOCItem, err error)`.
-- `GET /library/book/{id}/read` — страница ридера (название/авторы, кнопка
-  «Скачать», настройки шрифта/темы, сохранение позиции).
-- `GET /library/book/{id}/html` — отрендеренный HTML книги (на лету).
-- Кнопка «Читать» на `library_book.html`.
-- Прогресс: `bookmarks.position` (таблица есть, `position TEXT`) и/или
-  `bookshelf.last_read_at` (уже обновляется в `AddToShelf`).
-  Формат `position` для MVP: `"percent:12.5"` (доля прокрутки 0..100).
-
-### Референсы (найдены через GitHub, ноя 2026)
-
-- `centrypoint/fb2` — парсер FB2 на Go (MIT, тесты).
-- `rupor-github/fb2converter` — зрелый FB2→EPUB/MOBI (EOL/архив, преемник
-  `fb2cng`); референс обработки `<body>`, сносок, картинок.
-- `reinventer/fb2epub` — простой FB2→EPUB (образец для конвертера).
-- `shemanaev/inpxer` — OPDS+web на Go, идеологически близко.
-- `vpoluyaktov/*` — EPUB/FB2 с pluggable renderers.
-
-Вывод: для server-side HTML и FB2→EPUB своих ~200–300 строк хватит; тяжёлые
-зависимости не нужны. (`search_web` иногда падает — обход через
-`fetch_url_content` на github.com работает.)
-
-### Следующие шаги (с чего продолжить)
-
-1. Разобрать реальные FB2 из `/books` (внутри контейнера `eopds-go`): какие
-   теги тела встречаются, как устроены `<binary>` и сноски.
-2. Написать `internal/fb2render` + тесты, затем эндпоинты и страницу ридера.
-3. Завести `docs/go/reader.md` (API, параметры, коды, примеры) — по DoD.
-4. Версия MVP → 0.51.0.
-
-## Полезное для быстрого старта
+## Быстрый старт
 
 ```bash
-# поднять стек
 docker compose -f docker-compose.go.yml up -d
-# сборка образа после правок Go
-docker compose -f docker-compose.go.yml build eopds-go && \
+docker compose -f docker-compose.go.yml build --no-cache eopds-go && \
   docker compose -f docker-compose.go.yml up -d eopds-go
+docker compose -f docker-compose.go.yml exec eopds-go sh          # shell (дебаг)
+docker compose -f docker-compose.go.yml exec db-go psql -U eopds -d eopds
 ```
 
-Тестовые учётки dev-стенда (все проверены, вход по `POST /login`):
+Проверки:
+- `curl -s http://127.0.0.1:8080/api/health` → `status: ok`, `schema_version: 7`;
+- `curl -s http://127.0.0.1:8080/api/version` → `0.61.0`, `go: go1.27.4`.
 
-| Логин | Пароль | Роль |
-|-------|--------|------|
-| `admin` | `password123` | admin (root) |
-| `moderator` | `moderator123` | moderator |
-| `reader` | `reader123` | reader |
+Тестовые учётки (вход `POST /login`): `admin/password123` (root),
+`moderator/moderator123`, `reader/reader123`.
 
-Скан-каталог: `/books` (в контейнере), монтируется из
-`/run/media/ahtoh/SSD2/e-book`.
+Скан-каталог: `/books` в контейнере, из `/run/media/ahtoh/SSD2/e-book`.
 
-Проверка статуса сканирования (после логина, cookie `eopds_session`):
-`GET http://localhost:8080/scan/status`.
+## Что дальше
 
-## Технические заметки (грабли)
+- Текущая задача пользователя — на момент очистки: разные доработки по ходу,
+  единого тикета нет; «ещё много работы».
+- Перед релизом: запушить `dev` (origin отстаёт на 2 коммита), релизные ноты.
+- Кандидаты (по желанию): точная позиция чтения, кэш HTML читалки, эндпоинт
+  картинок вместо data URI; телеграм-бот/публичный портал — [roadmap.md](../roadmap.md).
 
-- **edit-инструмент иногда «съедает» начало файла** при больших правках —
-  после правок Go-файлов всегда проверять `go build ./...` и `gofmt -l`.
-  read_file может отдавать устаревшее содержимое — доверять `grep`/`go build`.
-- Скан **не должен** брать `r.Context()`: только `context.Background()`.
+## Как начать новый чат
+
+Одна фраза:
+
+> «Продолжаем eopds. Прочитай `docs/go/checkpoint.md` и `docs/README.md`,
+> кратко перескажи состояние и предложи следующий шаг. Задача: <…>»
