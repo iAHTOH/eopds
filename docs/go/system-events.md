@@ -71,12 +71,35 @@
 | `auth.logout` | info | — | выход |
 | `settings.scan_dirs` | info | `count` | изменение каталогов сканирования |
 | `lib.clear` | warn | `books` | очистка библиотеки |
+| `profile.update` | info | — | обновление профиля (имя, предпочтения) |
+| `profile.password` | warn | — | смена пароля |
+| `profile.avatar` | info | — | обновление аватара |
+| `profile.logout_others` | warn | `count` | завершение сеансов на других устройствах |
+| `mail.settings_saved` | info | `host`, `port`, `security`, `enabled` | сохранение настроек SMTP |
+| `mail.verify_ok` | info | `host`, `port`, `security` | успешная проверка SMTP |
+| `mail.verify_failed` | warn | `host`, `error` | неудачная проверка SMTP |
+| `mail.sent` | info | `template`, `to` | письмо отправлено |
+| `mail.error` | warn | `template`, `to`, `error` | ошибка отправки письма |
+| `mail.log_cleared` | warn | — | очистка журнала отправок |
+| `mail.password_reset_requested` | info | `email` | запрос сброса пароля |
+| `mail.password_reset_done` | info | `email` | пароль сменён по ссылке из письма |
+| `mail.reset_rate_limited` | warn | `email`, `by_email`, `by_ip`, `retry_after` | превышен лимит запросов сброса (адрес маскируется) |
+| `mail.tokens_purged` | info | `count` | обслуживание: удалены просроченные/использованные токены |
 
 Каждая категория имеет сообщение в `internal/i18n/translations.json` под
 ключом `ev.<category>` с подстановками `{book}`, `{path}`, `{error}`,
 `{created}`, `{updated}`, `{errors}`, `{elapsed}`, `{count}`, `{books}`,
-`{user}`. Роль и имя инициатора оформляются в шаблоне отдельно (с мягкой
-подсветкой роли).
+`{user}`, `{host}`, `{port}`, `{security}`, `{enabled}`, `{template}`, `{to}`,
+`{email}`, `{by_email}`, `{by_ip}`, `{retry_after}`. Роль и имя инициатора
+оформляются в шаблоне отдельно (с мягкой подсветкой роли).
+
+> **При добавлении события** обязательно добавьте категорию в
+> `knownEventCategories` (`internal/admin/events_i18n_test.go`) и перевод
+> `ev.<category>` для **всех** языков. Тест
+> `TestEventCategoriesTranslated` падает, если перевода нет, а
+> `TestEventPlaceholdersConsistent` — если набор плейсхолдеров в ru и en
+> различается. Так в журнале не появляется сырых ключей (был случай:
+> события `profile.*` писались без переводов).
 
 ## Скачивание
 
