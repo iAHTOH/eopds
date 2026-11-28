@@ -43,8 +43,8 @@ read-only эндпоинты доступны без неё.
 | POST | `/scan/run` | запуск сканирования в фоне (admin); сразу `303` на `/settings?sec=scan#run`; `full=1` — полный перескан |
 | GET | `/scan/status` | JSON-статус фонового сканирования (для поллинга) |
 | GET | `/settings?sec=scan` | раздел настроек «Сканирование» (каталоги, прогресс/итог, запуск, опасная зона) — admin |
-| GET | `/settings?sec=mail` | раздел настроек «Почта (SMTP)»: соединение, отправитель, проверка, журнал отправок — admin ([mail.md](mail.md)) |
-| POST | `/settings/mail` | сохранить настройки SMTP; пустой пароль — не менять, `-` — очистить; → `/settings?sec=mail#smtp` с `flash=saved` или `err=<код>` |
+| GET | `/settings?sec=mail` | раздел настроек «Почта (SMTP)»: соединение, отправитель, ссылки в письмах, проверка, журнал отправок — admin ([mail.md](mail.md)) |
+| POST | `/settings/mail` | сохранить настройки SMTP и публичный адрес (`public_url`); пустой пароль — не менять, `-` — очистить; → `/settings?sec=mail#smtp` с `flash=saved` или `err=<код>` (`err=public_url` дополнительно несёт `pu=<введённое>`) |
 | POST | `/settings/mail/verify` | проверить соединение и вход в SMTP без отправки письма → `flash=verified` / `flash=verify_failed` |
 | POST | `/settings/mail/test` | тестовое письмо на `to` (с проверкой адреса) → `flash=test_queued` или `err=mail.check.*` |
 | POST | `/settings/mail/clear` | очистить журнал отправок → `flash=log_cleared` |
@@ -61,6 +61,12 @@ read-only эндпоинты доступны без неё.
 | GET | `/library/shelf` | книжная полка пользователя |
 | POST | `/library/shelf/{id}/remove` | убрать книгу с полки (`303` назад) |
 | GET | `/opds*` | OPDS-каталог (1.2 Atom / 2.0 JSON), публичный — [opds.md](opds.md) |
+
+Коды `err` при сохранении почты (`POST /settings/mail`): `host`, `port`,
+`security`, `from_empty`, `from`, `reply_to`, `nocrypt` (пароль без шифрования),
+`public_url` (некорректный публичный адрес; рядом параметр `pu` — введённое
+значение для возврата в форму), `invalid`. Ответ — `303` (PRG) на страницу
+раздела с сообщением на языке интерфейса.
 
 ## `GET /scan/status`
 
