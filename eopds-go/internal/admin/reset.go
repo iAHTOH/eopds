@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -50,15 +51,67 @@ func hashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// settingMailPublicURL — ключ настройки публичного адреса портала
+// (для ссылок в письмах). Редактируется в разделе «Почта (SMTP)».
+const settingMailPublicURL = "mail.public_url"
+
+// normalizePublicURL приводит введённый публичный адрес к каноничному виду
+// «схема://хост[:порт][/путь]» без завершающего «/».
+// Возвращает ошибку, если адрес пустой (после TrimSpace), без схемы
+// http/https, без хоста или содержит пробелы.
+func normalizePublicURL(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", errPublicURLEmpty
+	}
+	// Пробелы внутри адреса — почти всегда след Copy/Paste с переносами.
+	if strings.ContainsAny(v, " \t\r\n") {
+		return "", errPublicURLBad
+	}
+	u, err := url.Parse(v)
+	if err != nil {
+		return "", errPublicURLBad
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return "", errPublicURLBad
+	}
+	if u.Host == "" {
+		return "", errPublicURLBad
+	}
+	// Query и fragment в базовом адресе не имеют смысла — считаем ошибкой,
+	// чтобы не собрать потом битую ссылку.
+	if u.RawQuery != "" || u.Fragment != "" {
+		return "", errPublicURLBad
+	}
+	u.Scheme = scheme
+	return strings.TrimRight(u.String(), "/"), nil
+}
+
+var (
+	errPublicURLEmpty = errors.New("mail public url: empty")
+	errPublicURLBad   = errors.New("mail public url: bad")
+)
+
+// mailPublicURL читает сохранённый публичный адрес портала (” — не задан).
+func (s *Server) mailPublicURL(ctx context.Context, st store.Store) string {
+	if st == nil {
+		return ""
+	}
+	v, err := st.GetSetting(ctx, settingMailPublicURL)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(v)
+}
+
 // resetBaseURL строит базовый адрес портала для ссылок в письмах.
-// Публичный адрес можно задать настройкой mail.public_url; иначе используется
-// схема и хост текущего запроса.
+// Публичный адрес можно задать настройкой mail.public_url (поле в разделе
+// «Почта (SMTP)»); иначе используется схема и хост текущего запроса.
 func (s *Server) resetBaseURL(r *http.Request) string {
-	if st := s.getStore(); st != nil {
-		if v, err := st.GetSetting(r.Context(), "mail.public_url"); err == nil {
-			if v = strings.TrimRight(strings.TrimSpace(v), "/"); v != "" {
-				return v
-			}
+	if v := s.mailPublicURL(r.Context(), s.getStore()); v != "" {
+		if v = strings.TrimRight(v, "/"); v != "" {
+			return v
 		}
 	}
 	scheme := "http"

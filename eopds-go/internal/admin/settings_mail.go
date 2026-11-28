@@ -45,6 +45,11 @@ type mailView struct {
 	FormFromName string
 	FormReplyTo  string
 	FormEnabled  bool
+
+	// PublicURL — сохранённый публичный адрес портала ('' — не задан);
+	// FormPublicURL — что показывать в поле формы.
+	PublicURL     string
+	FormPublicURL string
 }
 
 // mailSentView — строка журнала отправок.
@@ -80,17 +85,16 @@ func (s *Server) mailData(r *http.Request, data map[string]any, st store.Store) 
 	v.FormHost, v.FormPort, v.FormSecurity = v.Host, v.Port, v.Security
 	v.FormUsername, v.FormFromAddr, v.FormFromName, v.FormReplyTo = v.Username, v.FromAddr, v.FromName, v.ReplyTo
 	v.FormEnabled = v.Enabled
+	// Публичный адрес портала — отдельная настройка (settings), но
+	// редактируется в этой же форме, чтобы администратор видел, что от него
+	// зависят ссылки в письмах.
+	v.PublicURL = s.mailPublicURL(r.Context(), st)
+	v.FormPublicURL = v.PublicURL
 	// Ошибка/проверка пришли POST-ом — показываем введённое, а не сохранённое.
-	if r.Method == http.MethodPost {
-		if f, _ := parseMailForm(r); r.PostFormValue("host") != "" || r.PostFormValue("from_addr") != "" {
-			v.FormHost, v.FormPort, v.FormSecurity = f.Host, f.Port, f.Security
-			v.FormUsername, v.FormFromAddr = f.Username, f.FromAddr
-			v.FormFromName, v.FormReplyTo = f.FromName, f.ReplyTo
-			v.FormEnabled = f.Enabled
-			if f.Password != "" && f.Password != "-" {
-				v.PasswordSet = true
-			}
-		}
+	// После редиректа (GET) r.PostForm пуст, поэтому введённые значения
+	// переносятся в URL: короткий параметр pu для публичного адреса.
+	if pu := r.URL.Query().Get("pu"); pu != "" {
+		v.FormPublicURL = pu
 	}
 	settings := toMailSettings(raw)
 	v.Configured = settings.Configured()
@@ -249,6 +253,7 @@ func mailErrorText(r *http.Request, code string) string {
 		{"from", "Некорректный адрес отправителя (From)."},
 		{"reply_to", "Некорректный адрес Reply-To."},
 		{"nocrypt", "Пароль нельзя использовать без шифрования: выберите SMTPS или STARTTLS."},
+		{"public_url", "Некорректный публичный адрес: нужен вид https://библиотека.пример (без параметров и решётки)."},
 		{"invalid", "Настройки не сохранены: проверьте поля."},
 	}
 	en := []struct{ code, text string }{
@@ -259,6 +264,7 @@ func mailErrorText(r *http.Request, code string) string {
 		{"from", "Invalid From address."},
 		{"reply_to", "Invalid Reply-To address."},
 		{"nocrypt", "A password cannot be used without encryption: choose SMTPS or STARTTLS."},
+		{"public_url", "Invalid public URL: expected something like https://library.example (no query or fragment)."},
 		{"invalid", "Settings were not saved: please check the fields."},
 	}
 	list := ru

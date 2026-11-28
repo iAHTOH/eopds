@@ -271,6 +271,12 @@
   <label class="row"><span>{{T "mail.reply_to"}}</span>
     <input name="reply_to" type="email" value="{{$s.FormReplyTo}}" spellcheck="false"></label>
 
+  <h2 class="section-title">{{T "mail.group_links"}}</h2>
+  <label class="row"><span>{{T "mail.public_url"}}</span>
+    <input name="public_url" type="url" value="{{$s.FormPublicURL}}" spellcheck="false"
+           placeholder="https://library.example.com"></label>
+  <p class="muted small">{{T "mail.public_url_hint"}}</p>
+
   <label class="switch" style="margin:14px 0 4px">
     <input type="checkbox" name="enabled" value="1" {{if $s.FormEnabled}}checked{{end}}>
     <span class="switch-slider" aria-hidden="true"></span>

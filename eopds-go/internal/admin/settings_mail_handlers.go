@@ -2,7 +2,9 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -39,6 +41,24 @@ func (s *Server) handleSaveMail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "save failed", http.StatusInternalServerError)
 		return
 	}
+	// Публичный адрес портала — отдельная настройка, но сохраняется вместе
+	// с SMTP: от него зависят ссылки в письмах. Пустое поле — «не задан»
+	// (тогда базой станет адрес текущего запроса).
+	if err := s.saveMailPublicURL(r.Context(), st, r.PostFormValue("public_url"), uid); err != nil {
+		switch {
+		case errors.Is(err, errPublicURLEmpty), errors.Is(err, errPublicURLBad):
+			// Ошибка валидации публичного адреса — обрабатывается ниже.
+		default:
+			s.log.Error("settings: save mail public url", "err", err)
+			http.Error(w, "save failed", http.StatusInternalServerError)
+			return
+		}
+		// Настройки SMTP уже сохранены, но публичный адрес — нет: возвращаем
+		// в форму с ошибкой и введённым адресом (параметр pu), чтобы
+		// администратор исправил его, не набирая заново.
+		s.mailURLFlashRedirect(w, r, "public_url", strings.TrimSpace(r.PostFormValue("public_url")))
+		return
+	}
 	s.logEvent(r.Context(), store.EventInfo, "mail.settings_saved", map[string]string{
 		"host":     next.Host,
 		"port":     itoa(next.Port),
@@ -48,6 +68,33 @@ func (s *Server) handleSaveMail(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("настройки почты сохранены", "host", next.Host, "port", next.Port,
 		"security", next.Security, "enabled", next.Enabled)
 	s.mailFlashRedirect(w, r, "saved", "", "", "smtp")
+}
+
+// saveMailPublicURL проверяет и сохраняет публичный адрес портала.
+// Пустая строка означает «не задан» — настройка очищается.
+func (s *Server) saveMailPublicURL(ctx context.Context, st store.Store, raw string, uid int64) error {
+	if strings.TrimSpace(raw) == "" {
+		return st.SetSetting(ctx, settingMailPublicURL, "", uid)
+	}
+	v, err := normalizePublicURL(raw)
+	if err != nil {
+		return err
+	}
+	return st.SetSetting(ctx, settingMailPublicURL, v, uid)
+}
+
+// mailURLFlashRedirect возвращает в раздел «Почта» с ошибкой публичного
+// адреса; параметр pu переносит введённое значение обратно в форму
+// (после редиректа тела POST уже нет).
+func (s *Server) mailURLFlashRedirect(w http.ResponseWriter, r *http.Request, errCode, value string) {
+	q := url.Values{}
+	q.Set("sec", "mail")
+	q.Set("lang", resolveLang(r))
+	q.Set("err", errCode)
+	if value != "" {
+		q.Set("pu", value)
+	}
+	http.Redirect(w, r, "/settings?"+q.Encode()+"#smtp", http.StatusSeeOther)
 }
 
 // handleVerifyMail проверяет соединение с SMTP с учётом сохранённого пароля
